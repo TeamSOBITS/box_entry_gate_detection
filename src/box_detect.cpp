@@ -21,7 +21,7 @@
 typedef pcl::PointXYZ PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
 
-class BoxDetectionNode{
+class BoxDetection{
 
   private:
 
@@ -34,16 +34,14 @@ class BoxDetectionNode{
 
     tf::TransformListener                     listener;
 
-    PointCloud::Ptr                           cloud_transformed_;
+
     PointCloud::Ptr                           pcl_cloud_;
     PointCloud::Ptr                           cluster_max_,cluster_min_;
-    //PointCloud::Ptr                           cloud_cut_xz_;
-    PointCloud::Ptr                           cloud_filtered_;
     PointCloud::Ptr                           entry_gate_cloud_;
     PointCloud::Ptr                           boxDetect_cloud_;
 
-    std::string                               target_frame_ = "base_footprint";//get paramで取得できるように直す
-    std::string                               camera_frame_name_ = "/camera/depth/points";//get paramで取得できるように直す
+    std::string                               base_frame_name_;
+    std::string                               points_topic_name_;
     /*  Eigen::Vector */
     Eigen::Vector4f                           xyz_centroid_min_;//中心座標
     Eigen::Vector4f                           min_pt_, max_pt_;
@@ -54,87 +52,100 @@ class BoxDetectionNode{
     float                                     depth_x_max,depth_x_min,depth_z_max,depth_z_min;
 
   public:
-    BoxDetectionNode()
+    BoxDetection()
       :nh_()
       ,pnh_("~")
       ,boxDetect_cloud_(new PointCloud()){
-      ROS_INFO("0");
-      this-> cloud_sub_ = nh_.subscribe(this-> camera_frame_name_, 1, &BoxDetectionNode::DetectPointCb, this);
-      //エラーの時
-      if(!ros::topic::waitForMessage<sensor_msgs::PointCloud2>(this-> camera_frame_name_, ros::Duration(3.0))){
-          ROS_ERROR("timeout");
-          exit(EXIT_FAILURE);
-        }
-      this-> plane_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/box_detection_node",1);//publishするときのtarget_frame
-      ROS_INFO("1");
+     // load rosparam
+     ros::param::get("depth_range_min_x", this->depth_x_min);
+     ros::param::get("depth_range_max_x", this->depth_x_max);
+     ros::param::get("depth_range_min_z", this->depth_z_min);
+     ros::param::get("depth_range_max_z", this->depth_z_max);
+
+     ros::param::get("base_frame_name", this->base_frame_name_);
+
+     base_frame_name_ = "base_footprint";
+     points_topic_name_ = "/camera/depth/points" ;
+
+     ROS_INFO("0");
+     cloud_sub_ = nh_.subscribe(points_topic_name_, 1, &BoxDetection::DetectPointCb, this);
+     std::cout << base_frame_name_ << std::endl;
+
+     //エラーの時
+     if(!ros::topic::waitForMessage<sensor_msgs::PointCloud2>(points_topic_name_, ros::Duration(3.0))){
+         ROS_ERROR("timeout");
+         exit(EXIT_FAILURE);
+       }
+     plane_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/box_detection",1);//publishするときのtarget_frame
+     ROS_INFO("1");
     }
 
 
     PointCloud::ConstPtr GetBoxDtectionCloud() const{
-        return BoxDetectionNode::boxDetect_cloud_;
+        return BoxDetection::boxDetect_cloud_;
         ROS_INFO("2");
     }
 
 
-
     void DetectPointCb(const sensor_msgs::PointCloud2ConstPtr& pcl_msg){
-      try{
-          PointCloud      from_msg_cloud;
-          ROS_INFO("2-2");
-          pcl::fromROSMsg(*pcl_msg, from_msg_cloud);//msg型　→　pointcloud型へ変換
-          ROS_INFO("2-3");
 
-          //this-> listener.waitForTransform(this-> target_frame_, this-> camera_frame_name_, ros::Time(0), ros::Duration(1.0));
-      		//pcl_ros::transformPointCloud(this-> target_frame_, from_msg_cloud, *this-> cloud_transformed_, this-> listener);
-          if(this-> target_frame_.empty() == false){
-            //座標系に変換の可否
-            ros::Duration(0.03).sleep();
-            if (pcl_ros::transformPointCloud(this-> target_frame_, from_msg_cloud, *this-> cloud_transformed_, this-> listener) == false){
-               ROS_ERROR("Failed pcl_ros::transformPointCloud. target_frame = %s",this-> target_frame_.c_str());
-               return;
-            }
-          }
-      }//try
-      catch(tf::TransformException ex){
-          ROS_ERROR("%s",ex.what());
+      PointCloud::Ptr      from_msg_cloud(new PointCloud);
+      pcl::fromROSMsg(*pcl_msg, *from_msg_cloud);//msg型　→　pointcloud型へ変換
+      if (from_msg_cloud-> points.size() == 0) {
+          ROS_ERROR("No from_msg_cloud");
           return;
-        }
+      }
+      std::string    camera_frame_name = pcl_msg-> header.frame_id;
 
-      ROS_INFO("4");
+
+      ROS_INFO("3-1");
+      //ここで座標変換可能か確認
+      bool key = listener.canTransform(base_frame_name_, camera_frame_name, ros::Time(0));
+      if (key == false) {
+        ROS_ERROR("box_detection_node : pcl canTransform fail");
+        return;
+      }
+      ROS_INFO("3-2");
+      // base_flame基準のpointcloudに変換
+      PointCloud::Ptr cloud_transformed(new PointCloud);
+      pcl_ros::transformPointCloud(base_frame_name_, ros::Time(0), *from_msg_cloud, camera_frame_name, *cloud_transformed, listener);
+      ROS_INFO("3-3");
+
       //点群に対しての処理を書く
       // filtering X limit(念の為)
       PointCloud::Ptr cloud_cut_x(new PointCloud);
       pcl::PassThrough<pcl::PointXYZ> pass_x;
-      pass_x.setInputCloud (this-> cloud_transformed_);
+      pass_x.setInputCloud (cloud_transformed);
       pass_x.setFilterFieldName ("x");
       pass_x.setFilterLimits (this-> depth_x_min, this-> depth_x_max);
       pass_x.filter (*cloud_cut_x);
 
       // filtering Z limit（念の為）
-      PointCloud::Ptr cloud_cut_xz(new PointCloud);
+      PointCloud::Ptr cloud_filtered(new PointCloud);
       pcl::PassThrough<pcl::PointXYZ> pass_z;
       pass_z.setInputCloud (cloud_cut_x);
       pass_z.setFilterFieldName ("z");
       pass_z.setFilterLimits (this-> depth_z_min, this-> depth_z_max);
-      pass_z.filter (*cloud_cut_xz);
+      pass_z.filter (*cloud_filtered);
 
       //ダウンサンプリング
+      PointCloud::Ptr cloud_vg(new PointCloud);
       pcl::VoxelGrid<PointT> vg;
-      vg.setInputCloud (cloud_cut_xz);
+      vg.setInputCloud (cloud_filtered);
       vg.setLeafSize (0.001f, 0.001f, 0.001f);
       vg.setDownsampleAllData(true);
-      vg.filter (*this-> cloud_filtered_);
+      vg.filter (*cloud_vg);
 
       //クラスタリング
       pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>);
-      tree-> setInputCloud(this-> cloud_filtered_);
+      tree-> setInputCloud(cloud_vg);
       std::vector<pcl::PointIndices> cluster_indices;
       pcl::EuclideanClusterExtraction<PointT> ec;
       ec.setClusterTolerance (0.02); // 2cm
       ec.setMinClusterSize (1000);
       ec.setMaxClusterSize (25000);
       ec.setSearchMethod (tree);
-      ec.setInputCloud(this-> cloud_filtered_);
+      ec.setInputCloud(cloud_vg);
       ec.extract (cluster_indices);
 
       ROS_INFO("5");
@@ -145,12 +156,12 @@ class BoxDetectionNode{
                                                          it_end = cluster_indices.end();
                                                          it != it_end;
                                                          ++it){
-        pcl::getMinMax3D(*this-> cloud_filtered_, *it, this-> min_pt_, this-> max_pt_);
+        pcl::getMinMax3D(*cloud_vg, *it, this-> min_pt_, this-> max_pt_);
         Eigen::Vector4f cluster_size = this-> max_pt_ - this-> min_pt_;
         if(cluster_size.x() > 0 && cluster_size.y() > 0 && cluster_size.z() > 0){
           for(std::vector<int>::const_iterator pit = it-> indices.begin (); pit != it-> indices.end (); pit++){
-            if(this-> cloud_filtered_-> points[*pit].x - this-> cloud_filtered_-> points[*pit].x > threshold_value){
-              this-> cloud_filtered_-> points[*pit] = this-> entry_gate_cloud_->points[j];
+            if(cloud_vg-> points[*pit].x - cloud_vg-> points[*pit].x > threshold_value){
+              cloud_vg-> points[*pit] = this-> entry_gate_cloud_->points[j];
               j++;
             }//if
           }//for
@@ -186,13 +197,13 @@ class BoxDetectionNode{
    ROS_INFO("8");
    std::cout << "Reason:\t" << msg << std::endl;
  }//no_detect
-};//class BoxDetectionNode
+};//class BoxDetection
 
 int main(int argc, char *argv[]){
   /* ノードの初期化 */
   ros::init(argc, argv, "box_detection_node");
-  /* BoxDetectionNode のインスタンスを作成 */
-  BoxDetectionNode box_detection_node;
+  /* BoxDetection のインスタンスを作成 */
+  BoxDetection box_detection_node;
   ROS_INFO("Hello Point Cloud!");
 
   while (ros::ok()){
