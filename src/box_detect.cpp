@@ -40,6 +40,7 @@ class BoxDetection{
     ros::Publisher                            cut_x_pub_;
     ros::Publisher                            box_clusters_;
     ros::Publisher                            entry_gate_clusters_;
+    ros::Publisher                            coordinate_point_;
 
 
     tf::TransformListener                     listener;
@@ -54,9 +55,8 @@ class BoxDetection{
     std::string                               base_frame_name_;
     std::string                               points_topic_name_;
     /*  Eigen::Vector */
-    Eigen::Vector4f                           xyz_centroid_min_;//中心座標
-    Eigen::Vector4f                           min_pt_, max_pt_;
-    Eigen::Vector4f                           entry_gate_min_pt_, entry_gate_max_pt_;
+    Eigen::Vector4f                           min_pt_[2], max_pt_[2], center_pt_[2];
+
 
     float                                     cluster_width_,cluster_hight_;
     float                                     max_cloud_x_,max_cloud_z_,min_cloud_x_,min_cloud_z_;
@@ -87,14 +87,15 @@ class BoxDetection{
          exit(EXIT_FAILURE);
        }
     /*Publisher*/
-     box_pub_             = nh_.advertise<sensor_msgs::PointCloud2>("/box_detection",1);
+     box_pub_             =  nh_.advertise<sensor_msgs::PointCloud2>("/box_detection",1);
      pcl_rosmsg_          =  nh_.advertise<sensor_msgs::PointCloud2>("/pcl_rosMsg",1);
-     transform_           = nh_.advertise<sensor_msgs::PointCloud2>("/transform",1);
+     transform_           =  nh_.advertise<sensor_msgs::PointCloud2>("/transform",1);
      cut_x_pub_           =  nh_.advertise<sensor_msgs::PointCloud2>("/cut_x_cloud",1);
      filter_pub_          =  nh_.advertise<sensor_msgs::PointCloud2>("/filter_cloud",1);
      voxel_grid_pub_      =  nh_.advertise<sensor_msgs::PointCloud2>("/voxel_grid",1);
-     box_clusters_        = nh_.advertise<visualization_msgs::MarkerArray>("box_cluster", 1);
-     entry_gate_clusters_ = nh_.advertise<visualization_msgs::MarkerArray>("entry_gate_cluster", 1);
+     box_clusters_        =  nh_.advertise<visualization_msgs::MarkerArray>("box_cluster", 1);
+     coordinate_point_    =  nh_.advertise<visualization_msgs::MarkerArray>("box_point", 1);
+     entry_gate_clusters_ =  nh_.advertise<visualization_msgs::MarkerArray>("entry_gate_cluster", 1);
      //ROS_INFO("1");
     }
 
@@ -138,12 +139,12 @@ class BoxDetection{
 
       //点群に対しての処理を書く
       // filtering X limit(念の為)
-      std::cout << "cloud_transformed_:" << cloud_transformed_->points.size() << std::endl;
+      //std::cout << "cloud_transformed_:" << cloud_transformed_->points.size() << std::endl;
       PointCloud::Ptr cloud_cut_x(new PointCloud);
       pcl::PassThrough<PointT> pass_x;
       pass_x.setInputCloud (cloud_transformed_);
       pass_x.setFilterFieldName ("x");
-      pass_x.setFilterLimits (0.1, 3.0);
+      pass_x.setFilterLimits (0.1, 1.5);
       pass_x.filter (*cloud_cut_x);
       cloud_cut_x->header.frame_id = base_frame_name_;
       //std::cout << "cloud_cut_x : " << cloud_cut_x->points.size() << std::endl;
@@ -166,7 +167,7 @@ class BoxDetection{
       vg.setDownsampleAllData(true);
       vg.filter (*cloud_vg);
       cloud_vg->header.frame_id = base_frame_name_;
-      std::cout << "voxel_grid : " << cloud_vg->points.size() << std::endl;
+      //std::cout << "voxel_grid : " << cloud_vg->points.size() << std::endl;
       voxel_grid_pub_.publish(cloud_vg);
 
       //ROS_INFO("4-3");
@@ -181,8 +182,10 @@ class BoxDetection{
       ec.setSearchMethod (box_tree);
       ec.setInputCloud(cloud_vg);
       ec.extract (box_cluster_indices);
-      visualization_msgs::MarkerArray box_marker_array;
-      int box_marker_id = 0;
+      visualization_msgs::MarkerArray marker_array;
+      int marker_id[2];
+      marker_id[0] = 0;
+      //size_t ok = 0;
 
       //ROS_INFO("5");
       int j=0;
@@ -191,27 +194,36 @@ class BoxDetection{
       for(std::vector<pcl::PointIndices>::const_iterator it     = box_cluster_indices.begin(),
                                                          it_end = box_cluster_indices.end();
                                                          it != it_end;
-                                                         ++it, ++box_marker_id){
-          pcl::getMinMax3D(*cloud_vg, *it, min_pt_,  max_pt_);
-          Eigen::Vector4f cluster_size =  max_pt_ -  min_pt_;
-
-          std::cout << box_marker_id << std::endl;
+                                                         ++it, ++marker_id[0]){
+          pcl::getMinMax3D(*cloud_vg, *it, min_pt_[0],  max_pt_[0]);
+          Eigen::Vector4f cluster_size =  max_pt_[0] -  min_pt_[0];
+          /* 検出したクラスタの重心を計算 */
+          pcl::compute3DCentroid(*cloud_vg, center_pt_[0]);//重心を計算
+          //std::cout << marker_id[0] << std::endl;
           if(cluster_size.x() > 0 && cluster_size.y() > 0 && cluster_size.z() > 0){
-            box_marker_array.markers.push_back(
-            box_makeMarker(base_frame_name_, "box", box_marker_id, min_pt_, max_pt_, 0.0f, 1.0f, 0.0f, 0.5f));
-            //std::cout << "box_marker_array:" << box_marker_array << std::endl;
+            bool first_cluster = false;//クラスタを区別するため
+            marker_array.markers.push_back(
+              makeMarker(base_frame_name_, "box", marker_id, min_pt_[0], max_pt_[0], 0.0f, 1.0f, 0.0f, 0.5f));
+            //std::cout << "marker_array:" << marker_array << std::endl;
             for(std::vector<int>::const_iterator pit = it-> indices.begin (); pit != it-> indices.end (); pit++){
 
-              /*クラスタの一番近いクラスタを用いた縁検出*/
-              if(box_marker_id == 0){
+              if(marker_id[0] == 0){ first_cluster = true;}
+              if(first_cluster){
+                //クラスタの色変更
+                marker_array.markers.push_back(
+                  makeMarker(base_frame_name_, "box", marker_id, min_pt_[0], max_pt_[0], 0.0f, 0.0f, 1.0f, 0.5f));
+                //std::cout << "marker_array:" << marker_array << std::endl;
+                //ok++;
+                /* 検出したクラスタの辺の長さと中心を取得 */
+                target_marker("box");
+                /*クラスタの一番近いクラスタを用いた縁検出*/
                 if(cloud_vg-> points[*pit].x - cloud_vg-> points[*pit].x > threshold_value){
                   std::cout << "find edge points!" << std::endl;
                   cloud_vg-> points[*pit] =  entry_gate_cloud_->points[j];
                   j++;
                 }
               }
-
-            }
+            }//for
           }//if
           else{
             no_detect("No detect the target : xtion");
@@ -219,11 +231,12 @@ class BoxDetection{
           }//else
       }//for
       /*クラスタの有無*/
-      if (box_marker_array.markers.empty() == false){
-          box_clusters_.publish(box_marker_array);
+      if (marker_array.markers.empty() == false){
+          box_clusters_.publish(marker_array);
       }
       ROS_INFO("6");
-    std::cout << entry_gate_cloud_ << std::endl;
+    /*
+    //std::cout << entry_gate_cloud_ << std::endl;
     //投入口のクラスタリング
     pcl::search::KdTree<PointT>::Ptr entry_gate_tree(new pcl::search::KdTree<PointT>);
     entry_gate_tree-> setInputCloud( entry_gate_cloud_);
@@ -249,68 +262,72 @@ class BoxDetection{
       pcl::getMinMax3D(* entry_gate_cloud_, *pit,  entry_gate_min_pt_,  entry_gate_max_pt_);
       Eigen::Vector4f entry_gate_cluster_size =  entry_gate_max_pt_ -  entry_gate_min_pt_;
       if(entry_gate_cluster_size.x() > 0 && entry_gate_cluster_size.y() > 0 && entry_gate_cluster_size.z() > 0){
-        /* Markerをbox_marker_array.markersに追加 */
+        /* Markerをmarker_array.markersに追加
          entry_gate_marker_array.markers.push_back(
          entry_gate_makeMarker(
-             base_frame_name_, "entry_gate_cluster", entry_gate_marker_id, entry_gate_min_pt_, entry_gate_max_pt_, 0.0f, 1.0f, 0.0f, 0.5f));
+             base_frame_name_, "entry_gate", entry_gate_marker_id, entry_gate_min_pt_, entry_gate_max_pt_, 0.0f, 1.0f, 0.0f, 0.5f));
 
       }
-      /* 検出したクラスタの重心を計算 */
+      /* 検出したクラスタの重心を計算
       Eigen::Vector4f xyz_centroid; //クラスタの重心
       pcl::compute3DCentroid(* entry_gate_cloud_, xyz_centroid);//重心を計算
     }
+    */
 
     ROS_INFO("7");
   }//DetectPointCb
 
-  /* クラスタを直方体で表示するためのMarkerを作成（箱用） */
-    visualization_msgs::Marker box_makeMarker(
+  /* クラスタを直方体で表示するためのMarkerを作成 */
+    visualization_msgs::Marker makeMarker(
     const std::string &frame_id, const std::string &marker_ns,
-    int marker_id,
+    int marker_id[2],
     const Eigen::Vector4f &min_pt, const Eigen::Vector4f &max_pt,
-    float r, float g, float b, float a) const
-    {
-        visualization_msgs::Marker box_marker;
-        box_marker.header.frame_id = frame_id;
-        box_marker.header.stamp = ros::Time::now();
-        box_marker.ns = marker_ns;
-        box_marker.id = marker_id;
-        box_marker.type = visualization_msgs::Marker::CUBE;
-        box_marker.action = visualization_msgs::Marker::ADD;
+    float r, float g, float b, float a) const{
+        visualization_msgs::Marker marker;
+        int divide;
+        if(marker_ns == "box"){divide = 0;}
+        else if(marker_ns == "entry_gate"){divide = 1;}
+        else{ROS_INFO("No cluster");return marker;}
+        marker.header.frame_id = frame_id;
+        marker.header.stamp = ros::Time::now();
+        marker.ns = marker_ns[divide];
+        marker.id = marker_id[divide];
+        marker.type = visualization_msgs::Marker::CUBE;
+        marker.action = visualization_msgs::Marker::ADD;
 
-        box_marker.pose.position.x = (min_pt.x() + max_pt.x()) / 2;
-        box_marker.pose.position.y = (min_pt.y() + max_pt.y()) / 2;
-        box_marker.pose.position.z = (min_pt.z() + max_pt.z()) / 2;
+        marker.pose.position.x = (min_pt.x() + max_pt.x()) / 2;
+        marker.pose.position.y = (min_pt.y() + max_pt.y()) / 2;
+        marker.pose.position.z = (min_pt.z() + max_pt.z()) / 2;
 
-        box_marker.pose.orientation.x = 0.0;
-        box_marker.pose.orientation.y = 0.0;
-        box_marker.pose.orientation.z = 0.0;
-        box_marker.pose.orientation.w = 1.0;
+        marker.pose.orientation.x = 0.0;
+        marker.pose.orientation.y = 0.0;
+        marker.pose.orientation.z = 0.0;
+        marker.pose.orientation.w = 1.0;
 
-        box_marker.scale.x = max_pt.x() - min_pt.x();
-        box_marker.scale.y = max_pt.y() - min_pt.y();
-        box_marker.scale.z = max_pt.z() - min_pt.z();
+        marker.scale.x = max_pt.x() - min_pt.x();
+        marker.scale.y = max_pt.y() - min_pt.y();
+        marker.scale.z = max_pt.z() - min_pt.z();
 
-        box_marker.color.r = r;
-        box_marker.color.g = g;
-        box_marker.color.b = b;
-        box_marker.color.a = a;
+        marker.color.r = r;
+        marker.color.g = g;
+        marker.color.b = b;
+        marker.color.a = a;
 
-        box_marker.lifetime = ros::Duration(0.3);
-        return box_marker;
-    }
-    /* クラスタを直方体で表示するためのMarkerを作成（投入口用） */
+        marker.lifetime = ros::Duration(0.3);
+
+        return marker;
+      }
+    /* クラスタを直方体で表示するためのMarkerを作成（投入口用）
     visualization_msgs::Marker entry_gate_makeMarker(
     const std::string &frame_id, const std::string &marker_ns,
-    int box_marker_id,
+    int marker_id[0],
     const Eigen::Vector4f &min_pt, const Eigen::Vector4f &max_pt,
-    float r, float g, float b, float a) const
-    {
+    float r, float g, float b, float a) const{
         visualization_msgs::Marker entry_gate_marker;
         entry_gate_marker.header.frame_id = frame_id;
         entry_gate_marker.header.stamp = ros::Time::now();
         entry_gate_marker.ns = marker_ns;
-        entry_gate_marker.id = box_marker_id;
+        entry_gate_marker.id = marker_id[0];
         entry_gate_marker.type = visualization_msgs::Marker::CUBE;
         entry_gate_marker.action = visualization_msgs::Marker::ADD;
 
@@ -335,13 +352,92 @@ class BoxDetection{
         entry_gate_marker.lifetime = ros::Duration(0.3);
         return entry_gate_marker;
     }
+    */
+
+
+  void target_marker(const std::string &marker_ns){
+ 		visualization_msgs::MarkerArray marker;
+    std::string   points_ns[3] = {"min_pt","center_pt","max_pt"};
+    int           divide;//boxかentry_gateの判別
+    if(marker_ns == "box"){divide = 0;}
+    else if(marker_ns == "entry_gate"){divide = 1;}
+
+        marker.markers.resize(3);
+     		marker.markers[0].header.frame_id = base_frame_name_;
+     		marker.markers[0].header.stamp = ros::Time::now();
+     		marker.markers[0].action = visualization_msgs::Marker::ADD;
+     		marker.markers[0].type = visualization_msgs::Marker::SPHERE;
+     		marker.markers[0].ns = points_ns[0];
+     		marker.markers[0].id = 1;
+     		marker.markers[0].color.a = 1.0;
+     		marker.markers[0].color.r = 0.0;
+     		marker.markers[0].color.g = 0.0;
+     		marker.markers[0].color.b = 1.0;
+     		marker.markers[0].scale.x = 0.01;//[m]
+     		marker.markers[0].scale.y = 0.01;//[m]
+     		marker.markers[0].scale.z = 1.0;//[m]
+     		marker.markers[0].pose.position.x = min_pt_[divide].x();
+     		marker.markers[0].pose.position.y = min_pt_[divide].y();
+     		marker.markers[0].pose.position.z = min_pt_[divide].z();
+     		marker.markers[0].pose.orientation.x = 0;
+     		marker.markers[0].pose.orientation.y = 0;
+     		marker.markers[0].pose.orientation.z = 0;
+     		marker.markers[0].pose.orientation.w = 1;
+
+        marker.markers[1].header.frame_id = base_frame_name_;
+        marker.markers[1].header.stamp = ros::Time::now();
+        marker.markers[1].action = visualization_msgs::Marker::ADD;
+        marker.markers[1].type = visualization_msgs::Marker::SPHERE;
+        marker.markers[1].ns = points_ns[1];
+        marker.markers[1].id = 2;
+        marker.markers[1].color.a = 1.0;
+        marker.markers[1].color.r = 0.0;
+        marker.markers[1].color.g = 1.0;
+        marker.markers[1].color.b = 0.0;
+        marker.markers[1].scale.x = 0.01;//[m]
+        marker.markers[1].scale.y = 0.01;//[m]
+        marker.markers[1].scale.z = 1.0;//[m]
+        marker.markers[1].pose.position.x = center_pt_[divide].x();
+        marker.markers[1].pose.position.y = center_pt_[divide].y();
+        marker.markers[1].pose.position.z = center_pt_[divide].z();
+        marker.markers[1].pose.orientation.x = 0;
+        marker.markers[1].pose.orientation.y = 0;
+        marker.markers[1].pose.orientation.z = 0;
+        marker.markers[1].pose.orientation.w = 1;
+
+        marker.markers[2].header.frame_id = base_frame_name_;
+        marker.markers[2].header.stamp = ros::Time::now();
+        marker.markers[2].action = visualization_msgs::Marker::ADD;
+        marker.markers[2].type = visualization_msgs::Marker::SPHERE;
+        marker.markers[2].ns = points_ns[2];
+        marker.markers[2].id = 3;
+        marker.markers[2].color.a = 1.0;
+        marker.markers[2].color.r = 1.0;
+        marker.markers[2].color.g = 0.0;
+        marker.markers[2].color.b = 0.0;
+        marker.markers[2].scale.x = 0.01;//[m]
+        marker.markers[2].scale.y = 0.01;//[m]
+        marker.markers[2].scale.z = 1.0;//[m]
+        marker.markers[2].pose.position.x = max_pt_[divide].x();
+        marker.markers[2].pose.position.y = max_pt_[divide].y();
+        marker.markers[2].pose.position.z = max_pt_[divide].z();
+        marker.markers[2].pose.orientation.x = 0;
+        marker.markers[2].pose.orientation.y = 0;
+        marker.markers[2].pose.orientation.z = 0;
+        marker.markers[2].pose.orientation.w = 1;
+
+    coordinate_point_.publish(marker);
+
+ 	}//target_marker
+
+
 
 
   /* 検出しなかったとき */
- void no_detect(std::string msg){
+  void no_detect(std::string msg){
    ROS_ERROR("No detect target");
    std::cout << "Reason:\t" << msg << std::endl;
- }//no_detect
+  }//no_detect
 };//class BoxDetection
 
 int main(int argc, char *argv[]){
@@ -350,13 +446,9 @@ int main(int argc, char *argv[]){
   /* BoxDetection のインスタンスを作成 */
   BoxDetection box_detection_node;
   ROS_INFO("Hello Point Cloud!");
-  ROS_INFO("1-1");
   while (ros::ok()){
-    ROS_INFO("1-2");
     ros::Duration(0.1).sleep();
-    ROS_INFO("1-3");
     ros::spinOnce();
-    ROS_INFO("1-4");
   }
   /*
   while (ros::ok()) {
