@@ -16,7 +16,8 @@
 #include <pcl/ModelCoefficients.h>
 /* rviz */
 #include <visualization_msgs/MarkerArray.h>
-
+/*平方根*/
+#include <cmath>
 
 
 
@@ -56,11 +57,12 @@ class BoxDetection{
     std::string                               points_topic_name_;
     /*  Eigen::Vector */
     Eigen::Vector4f                           min_pt_[2], max_pt_[2], center_pt_[2];
+    Eigen::Vector4f                           nearest_min_pt_, nearest_max_pt_, nearest_cluster_;
 
 
-    float                                     cluster_width_,cluster_hight_;
-    float                                     max_cloud_x_,max_cloud_z_,min_cloud_x_,min_cloud_z_;
-    float                                     depth_x_max,depth_x_min,depth_z_max,depth_z_min;
+    float                                     cluster_width_, cluster_hight_;
+    float                                     max_cloud_x_, max_cloud_z_, min_cloud_x_, min_cloud_z_;
+    float                                     depth_x_max_, depth_x_min_, depth_z_max_, depth_z_min_;
 
   public:
     BoxDetection()
@@ -68,10 +70,10 @@ class BoxDetection{
       ,pnh_("~")
       ,boxDetect_cloud_(new PointCloud()){
      // load rosparam
-     ros::param::get("depth_range_min_x", depth_x_min);
-     ros::param::get("depth_range_max_x", depth_x_max);
-     ros::param::get("depth_range_min_z", depth_z_min);
-     ros::param::get("depth_range_max_z", depth_z_max);
+     ros::param::get("depth_range_min_x", depth_x_min_);
+     ros::param::get("depth_range_max_x", depth_x_max_);
+     ros::param::get("depth_range_min_z", depth_z_min_);
+     ros::param::get("depth_range_max_z", depth_z_max_);
 
      ros::param::get("base_frame_name", base_frame_name_);
 
@@ -97,12 +99,6 @@ class BoxDetection{
      coordinate_point_    =  nh_.advertise<visualization_msgs::MarkerArray>("box_point", 1);
      entry_gate_clusters_ =  nh_.advertise<visualization_msgs::MarkerArray>("entry_gate_cluster", 1);
      //ROS_INFO("1");
-    }
-
-
-    PointCloud::ConstPtr GetBoxDtectionCloud() const{
-        return BoxDetection::boxDetect_cloud_;
-        //ROS_INFO("2");
     }
 
 
@@ -190,6 +186,7 @@ class BoxDetection{
       //ROS_INFO("5");
       int j=0;
       float threshold_value = 0.02;
+      bool target_cluster = false;
 
       for(std::vector<pcl::PointIndices>::const_iterator it     = box_cluster_indices.begin(),
                                                          it_end = box_cluster_indices.end();
@@ -200,20 +197,31 @@ class BoxDetection{
           /* 検出したクラスタの重心を計算 */
           pcl::compute3DCentroid(*cloud_vg, center_pt_[0]);//重心を計算
           //std::cout << marker_id[0] << std::endl;
+          nearest_min_pt_ = min_pt_[0];
+          nearest_max_pt_ = max_pt_[0];
+          nearest_cluster_ = center_pt_[0];
+
           if(cluster_size.x() > 0 && cluster_size.y() > 0 && cluster_size.z() > 0){
-            bool first_cluster = false;//クラスタを区別するため
             marker_array.markers.push_back(
               makeMarker(base_frame_name_, "box", marker_id, min_pt_[0], max_pt_[0], 0.0f, 1.0f, 0.0f, 0.5f));
             //std::cout << "marker_array:" << marker_array << std::endl;
             for(std::vector<int>::const_iterator pit = it-> indices.begin (); pit != it-> indices.end (); pit++){
 
-              if(marker_id[0] == 0){ first_cluster = true;}
-              if(first_cluster){
+              /* 最も近いクラスタを検出 */
+              if(marker_id[0] == 0){ target_cluster = true;}
+              else{
+                /* d1 : target_clusterのクラスタまでの距離 */
+                float d1 = sqrt(pow(nearest_cluster_.x(), 2) + pow(nearest_cluster_.y(), 2));
+                /* ｄ2 : 新たに検出された特定のサイズに合致するクラスタまでの距離 */
+                float d2 = sqrt(pow(center_pt_.x(), 2) + pow(center_pt_.y(), 2));
+                if(d2 < d1){
+                  nearest_min_pt_ = min_pt_[0];
+                  nearest_max_pt_ = max_pt_[0];
+                  nearest_cluster_ = center_pt_[0];
+                //}
                 //クラスタの色変更
                 marker_array.markers.push_back(
                   makeMarker(base_frame_name_, "box", marker_id, min_pt_[0], max_pt_[0], 0.0f, 0.0f, 1.0f, 0.5f));
-                //std::cout << "marker_array:" << marker_array << std::endl;
-                //ok++;
                 /* 検出したクラスタの辺の長さと中心を取得 */
                 target_marker("box");
                 /*クラスタの一番近いクラスタを用いた縁検出*/
@@ -222,7 +230,7 @@ class BoxDetection{
                   cloud_vg-> points[*pit] =  entry_gate_cloud_->points[j];
                   j++;
                 }
-              }
+              }//else
             }//for
           }//if
           else{
@@ -450,13 +458,5 @@ int main(int argc, char *argv[]){
     ros::Duration(0.1).sleep();
     ros::spinOnce();
   }
-  /*
-  while (ros::ok()) {
-    ros::spin();
-    if (!viewer.wasStopped()) {
-      viewer.showCloud(box_detection_node.GetBoxDtectionCloud());
-    }
-    spin_rate.sleep();
-  }
-  */
+
 }
