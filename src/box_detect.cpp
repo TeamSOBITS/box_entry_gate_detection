@@ -199,10 +199,14 @@ class BoxDetection{
           //std::cout << marker_id[0] << std::endl;
 
           if(cluster_size.x() > 0 && cluster_size.y() > 0 && cluster_size.z() > 0){
+            /*
             marker_array.markers.push_back(
               makeMarker(base_frame_name_, "box", marker_id, min_pt_, max_pt_, 0.0f, 1.0f, 0.0f, 0.5f));
             //std::cout << "marker_array:" << marker_array << std::endl;
-            for(std::vector<int>::const_iterator pit = it-> indices.begin (); pit != it-> indices.end (); pit++){
+            */
+            visualization_msgs::Marker marker =
+            makeMarker(
+                frame_id, "cluster", marker_id, min_pt, max_pt, 0.0f, 1.0f, 0.0f, 0.5f);
 
               /* 最も近いクラスタを検出 */
               if(target_index < 0){
@@ -230,7 +234,7 @@ class BoxDetection{
                   target_index = marker_array.markers.size();
                 }
               }//else
-            }//for
+              //for(std::vector<int>::const_iterator pit = it-> indices.begin (); pit != it-> indices.end (); pit++){}//for
 
           }//if
           else{
