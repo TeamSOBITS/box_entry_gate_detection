@@ -211,3 +211,7 @@ include_directories(
 add_executable(box_detect src/box_detect.cpp)
 target_link_libraries(box_detect ${PCL_LIBRARIES} ${catkin_LIBRARIES})
 add_dependencies(box_detect ${PROJECT_NAME}_generate_messages_cpp)
+
+add_executable(box_detect_cluster src/box_detect_cluster.cpp)
+target_link_libraries(box_detect_cluster ${PCL_LIBRARIES} ${catkin_LIBRARIES})
+add_dependencies(box_detect_cluster ${PROJECT_NAME}_generate_messages_cpp)

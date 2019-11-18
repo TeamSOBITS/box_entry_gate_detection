@@ -21,6 +21,14 @@
 #include <cmath>
 /*アップサンプリング*/
 #include <pcl/surface/mls.h>
+/* 最頻値を求める */
+#include <string>
+#include <algorithm>                              //std::max_elementのため
+#include <vector>
+#include <unordered_map>                          //unordered_mapのため
+#include <iterator>                               //std::distanceを使用するため
+
+
 
 
 
@@ -69,7 +77,8 @@ class BoxDetection{
     float                                     cluster_width_, cluster_hight_;
     float                                     max_cloud_x_, max_cloud_z_, min_cloud_x_, min_cloud_z_;
     float                                     depth_x_max_, depth_x_min_, depth_z_max_, depth_z_min_;
-    float                                     threshold_value = 0.05; //[m]
+    float                                     threshold_value = 0.05; //閾値[m]
+    float                                     mode;//最頻値
 
 
   public:
@@ -113,6 +122,45 @@ class BoxDetection{
     }
 
 
+    void get_kitchen_height(PointCloud::Ptr kitchen_cloud_hight){
+      std::unordered_map<unsigned int, size_t> plane_height;
+      std::vector<int> kitchen_height;
+      /*配列に格納*/
+      for(int i = 0; i < kitchen_cloud_hight -> points.size(); i++ ){
+        /* クラスタリング後の点群の高さを100倍にして配列に格納 */
+        kitchen_height.push_back(std::round(kitchen_cloud_hight -> points[i].z * 100) );
+      }
+      /* 要素の配列があるか */
+      for(const auto &x : kitchen_height){
+        /* ある場合、ラベルに値を1追加 */
+        if(plane_height.find(x) != plane_height.end()){
+            ++plane_height.at(x);
+        }
+        /* ない場合、新しいラベルを追加して1を入れる */
+        else{
+            plane_height[x] = 1;
+        }
+      }
+      /* 最大値の要素のインデックスを取り出す */
+      auto max_iterator = std::max_element(plane_height.begin(), plane_height.end(),
+                                          [](const auto &a, const auto &b) -> bool{
+                                                                                return (a.second < b.second);
+                                                                              }
+                                          );
+      mode = max_iterator -> first;
+      mode = mode / 100;
+      float mode_low = mode - hight_threshold_;
+      float mode_high = mode + hight_threshold_;
+      for(int i = 0; i < kitchen_cloud_hight -> points.size(); i++)
+      {
+        if(mode_low < cloud_tranformed_ -> points[i].z && cloud_tranformed_ -> points[i].z < mode_high){
+          cloud_tranformed_ -> points[i].z = mode;
+        }
+        else{}
+      }
+    }//get_kitchen_height
+
+
   void DetectPointCb(const sensor_msgs::PointCloud2ConstPtr& pcl_msg){
       PointCloud::Ptr cloud_transformed_(new PointCloud());//初期化
       try {
@@ -123,7 +171,6 @@ class BoxDetection{
            /* 座標フレーム(原点)の変換 -> target_frameを基準にする  */
            if (base_frame_name_.empty() == false) {//フレームの有無
                try {
-
                    listener.waitForTransform(base_frame_name_, from_msg_cloud.header.frame_id, ros::Time(0), ros::Duration(1.0));
                    //std::cout << from_msg_cloud.header.frame_id << std::endl;
                    //cloud_transformed_.reset(new PointCloud());//初期化
@@ -166,6 +213,7 @@ class BoxDetection{
       pass_z.filter (*cloud_filtered);
       cloud_filtered->header.frame_id = base_frame_name_;
       filter_pub_.publish(cloud_filtered);
+
       //ダウンサンプリング
       PointCloud::Ptr cloud_vg(new PointCloud());
       pcl::VoxelGrid<PointT> vg;
@@ -177,7 +225,6 @@ class BoxDetection{
       //std::cout << "voxel_grid : " << cloud_vg->points.size() << std::endl;
       voxel_grid_pub_.publish(cloud_vg);
 
-      /*
       //クラスタリング
       //ROS_INFO("4-3");
       pcl::search::KdTree<PointT>::Ptr box_tree(new pcl::search::KdTree<PointT>);
@@ -190,7 +237,6 @@ class BoxDetection{
       ec.setSearchMethod (box_tree);
       ec.setInputCloud(cloud_vg);
       ec.extract (box_cluster_indices);
-      */
 
 
       //可視化
@@ -202,28 +248,30 @@ class BoxDetection{
       pcl::PointCloud <pcl::PointXYZRGB>::Ptr cloud_color(new   pcl::PointCloud <pcl::PointXYZRGB>());
       pcl::copyPointCloud(*cloud_vg, *cloud_color);
 
-    /*
+
       //クラスタを可視化
       try{
+          float max_point = cloud_vg->size();
+          std::cout << "max_points::" << max_point <<std::endl;
           for(std::vector<pcl::PointIndices>::const_iterator it = box_cluster_indices.begin(),
-                                                           it_end = box_cluster_indices.end();
-                                                           it != it_end; ++it, ++marker_id[0]){
+                                                         it_end = box_cluster_indices.end();
+                                                            it != it_end; ++it, ++marker_id[0]){
             pcl::getMinMax3D(*cloud_vg, *it, min_pt_,  max_pt_);
             Eigen::Vector4f cluster_size =  max_pt_ -  min_pt_;
-            //std::cout << cluster_size << std::endl;
+            //std::cout << "cluster_size::" << cluster_size << std::endl;
             center_pt_ = ((max_pt_ - min_pt_) / 2 ) + min_pt_;//  検出したクラスタの中心を計算
 
             if(cluster_size.x() > 0 && cluster_size.y() > 0 && cluster_size.z() > 0){
                 visualization_msgs::Marker marker =
                   makeMarker(base_frame_name_, "box", marker_id, min_pt_, max_pt_, 0.0f, 1.0f, 0.0f, 0.5f);
-                  /* 最も近いクラスタを検出
+                  /* 最も近いクラスタを検出*/
                   if(target_index < 0){
                     target_index = marker_array.markers.size();
                   }//target_index < 0
                   else{
-                    /* d1 : target_indexのクラスタまでの距離
+                    /* d1 : target_indexのクラスタまでの距離 */
                     float d1 = sqrt(pow( marker_array.markers[target_index].pose.position.x , 2) + pow( marker_array.markers[target_index].pose.position.y , 2));
-                    /* ｄ2 : 新たに検出された特定のサイズに合致するクラスタまでの距離
+                    /* ｄ2 : 新たに検出された特定のサイズに合致するクラスタまでの距離 */
                     float d2 = sqrt(pow( marker.pose.position.x , 2) + pow( marker.pose.position.y , 2));
                     if(d2 < d1){
                       target_index = marker_array.markers.size();
@@ -237,64 +285,11 @@ class BoxDetection{
               return;
             }
       }//for (box_cluster)
-      */
-      try{
-          float max_point = cloud_vg->size();
-          //std::cout << "00-1" << std::endl;
-          //std::cout << max_point << std::endl;
-
-
-          for(int i; i < max_point; i++){
-            //std::cout << "bigger::" <<  fabsf(cloud_vg-> points[i].z - cloud_vg-> points[i+1].z) << std::endl;
-            //オレンジ
-            if(i < 10){
-                  cloud_color-> points[i+1].r = 255;
-                  cloud_color-> points[i+1].g = 0;
-                  cloud_color-> points[i+1].b = 0;
-            }
-            else if(i > 10 && i < 30){
-                  cloud_color-> points[i+1].r = 150;
-                  cloud_color-> points[i+1].g = 0;
-                  cloud_color-> points[i+1].b = 0;
-            }
-            else if(i > 30 && i < 100){
-                  cloud_color-> points[i+1].r = 0;
-                  cloud_color-> points[i+1].g = 0;
-                  cloud_color-> points[i+1].b = 100;
-            }
-            else if(i > 100 && i < 500){
-                  cloud_color-> points[i+1].r = 0;
-                  cloud_color-> points[i+1].g = 0;
-                  cloud_color-> points[i+1].b = 255;
-            }
-            /*
-            if(fabsf(cloud_vg-> points[i].z - cloud_vg-> points[i+1].z) > threshold_value ){
-
-                //エメラルド
-                cloud_color-> points[i].r = 0;
-                cloud_color-> points[i].g = 255;
-                cloud_color-> points[i].b = 150;
-
-            }
-            */
-            else{
-              //std::cout << "00-4" << std::endl;
-              /*
-              cloud_color-> points[i].r = 255;
-              cloud_color-> points[i].g = 255;
-              cloud_color-> points[i].b = 255;
-              */
-            }
-            box_clusters_.publish(marker_array);
-            entry_gate_pub_.publish(cloud_color);
-        }
-
-
 
         //std::cout << "00-2" << std::endl;
 
 
-          //if(target_index >= 0){
+          if(target_index >= 0){
             /*
             //アップサンプリング
             PointCloud::Ptr upsampring_cloud(new PointCloud());
@@ -311,45 +306,27 @@ class BoxDetection{
           	filter.process(*upsampring_cloud);
             upsampring_.publish(upsampring_cloud);
             */
+
             //std::cout << "downsamplig:" << *cloud_vg << std::endl;
             //std::cout << "upsampling:"  << *upsampring_cloud << std::endl;
             //threshold_value = ((max_pt_.x() - min_pt_.x() / 2 ) + min_pt_.x()) * 0.5;
             //std::cout << "threshold_value" << threshold_value <<std::endl;
 
-            /*
+
               //投入口の縁のクラスタを作成
+              /*
               for(std::vector<pcl::PointIndices>::const_iterator it = box_cluster_indices.begin(),
                                                              it_end = box_cluster_indices.end();
                                                                 it != it_end; ++it, ++marker_id[0]){
                   for(std::vector<int>::const_iterator pit = it-> indices.begin(); pit != it-> indices.end(); pit++){
                       if(fabsf(cloud_vg-> points[*pit].x - cloud_vg-> points[*pit+1].x) > threshold_value ){
                       //if(fabsf(upsampring_cloud-> points[*pit].x - upsampring_cloud-> points[*pit+1].x) > threshold_value ){
-
-                          for(int i = 0; i < 5; i++){
-                              cloud_color-> points[*it-> indices.begin() + i].r = 255;
-                              cloud_color-> points[*it-> indices.begin() + i].g = 0;
-                              cloud_color-> points[*it-> indices.begin() + i].b = 255;
-                          }
-                          //エメラルド
-                          cloud_color-> points[*pit].r = 0;
-                          cloud_color-> points[*pit].g = 255;
-                          cloud_color-> points[*pit].b = 150;
-
-                          //オレンジ
-                          cloud_color-> points[*pit+1].r = 255;
-                          cloud_color-> points[*pit+1].g = 150;
-                          cloud_color-> points[*pit+1].b = 0;
-
-
+                    }
                           // std::cout << "find edge points!" << std::endl;
                           //std::cout << "cloud_vg-> points[*pit].x :" << cloud_vg-> points[*pit].x << std::endl;
                           //std::cout << "cloud_vg-> points[*pit+1].x :" << cloud_vg-> points[*pit+1].x << std::endl;
                           //見つけた点でクラスタリング
-
-
-                          */
                           /*
-
                           //投入口のクラスタリング
                           pcl::search::KdTree<PointT>::Ptr entry_gate_tree(new pcl::search::KdTree<PointT>);
                           PointCloud::Ptr entry_gate_cloud_(new PointCloud());
@@ -393,11 +370,15 @@ class BoxDetection{
                         cloud_color-> points[*pit].g = 255;
                         cloud_color-> points[*pit].b = 255;
                       }
+
                   }//for(std::vector<int>::const_iterator pit = it-> indices.begin (); pit != it-> indices.end (); pit++)
               }//for(box_cluster indices)
-              */
 
-            /*
+              */
+              }//if(target_index >= 0)
+
+
+
             if (marker_array.markers.empty() == false){
               if(target_index >= 0){
                 marker_array.markers[target_index].ns = "target_clusters";
@@ -406,13 +387,36 @@ class BoxDetection{
                 marker_array.markers[target_index].color.b = 1.0f;
                 marker_array.markers[target_index].color.a = 0.5f;
                 target_marker("box");
+                for(int i;i < max_point; i++){
+
+
+                        if(i < 100){
+                              cloud_color-> points[i+1].r = 255;
+                              cloud_color-> points[i+1].g = 0;
+                              cloud_color-> points[i+1].b = 0;
+                        }
+                        else if(i > 100 && i < 300){
+                              cloud_color-> points[i+1].r = 150;
+                              cloud_color-> points[i+1].g = 150;
+                              cloud_color-> points[i+1].b = 0;
+                        }
+                        else if(i > 300 && i < 1000){
+                              cloud_color-> points[i+1].r = 0;
+                              cloud_color-> points[i+1].g = 150;
+                              cloud_color-> points[i+1].b = 150;
+                        }
+                        else if(i > 1000 && i < 1500){
+                              cloud_color-> points[i+1].r = 0;
+                              cloud_color-> points[i+1].g = 0;
+                              cloud_color-> points[i+1].b = 255;
+                        }
+                }
               }
 
                 box_clusters_.publish(marker_array);
                 entry_gate_pub_.publish(cloud_color);
             }
-            */
-          //}//if(target_index >= 0)
+
     }//try
     catch (std::exception &e){
       ROS_ERROR("%s", e.what());
