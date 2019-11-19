@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(box_entry_gate_detection)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
- add_compile_options(-std=c++11)
+  add_compile_options(-std=c++14)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -215,3 +215,7 @@ add_dependencies(box_detect ${PROJECT_NAME}_generate_messages_cpp)
 add_executable(box_detect_cluster src/box_detect_cluster.cpp)
 target_link_libraries(box_detect_cluster ${PCL_LIBRARIES} ${catkin_LIBRARIES})
 add_dependencies(box_detect_cluster ${PROJECT_NAME}_generate_messages_cpp)
+
+add_executable(box_origin src/box_detect_origin.cpp)
+target_link_libraries(box_origin ${PCL_LIBRARIES} ${catkin_LIBRARIES})
+add_dependencies(box_origin ${PROJECT_NAME}_generate_messages_cpp)
