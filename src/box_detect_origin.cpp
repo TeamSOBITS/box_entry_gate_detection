@@ -227,6 +227,9 @@ class BoxDetection{
             pcl::getMinMax3D(*cloud_transformed_, *it, min_pt_,  max_pt_);
             Eigen::Vector4f cluster_size =  max_pt_ -  min_pt_;
             //std::cout << "cluster_size::" << cluster_size << std::endl;
+
+            std::cout << "min_pt_::" << min_pt_ << std::endl;
+            std::cout << "max_pt_::" << max_pt_ << std::endl;
             center_pt_ = ((max_pt_ - min_pt_) / 2 ) + min_pt_;//  検出したクラスタの中心を計算
 
             if(cluster_size.x() > 0 && cluster_size.y() > 0 && cluster_size.z() > 0){
@@ -275,10 +278,11 @@ class BoxDetection{
                 marker_array.markers[target_index].color.a = 0.5f;
                 target_marker("box");
                 //点群の配列を確認
-                int num;
-                for(Eigen::Vector4f i;i < max_pt_; i++){
-
-                        if(num < 100){
+                /*
+                int i = 0;
+                for(int num = min_pt_.x();num < max_pt_.x(); num++){
+                  std::cout << "aaa" << std::endl;
+                        if(i < 100){
                               cloud_color-> points[num].r = 255;
                               cloud_color-> points[num].g = 0;
                               cloud_color-> points[num].b = 0;
@@ -299,6 +303,8 @@ class BoxDetection{
                               cloud_color-> points[num].b = 255;
                         }
                 }
+                */
+
               }
 
                 box_clusters_.publish(marker_array);

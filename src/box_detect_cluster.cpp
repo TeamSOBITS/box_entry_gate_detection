@@ -67,6 +67,7 @@ class BoxDetection{
     PointCloud::Ptr                           entry_gate_cloud_;
     PointCloud::Ptr                           boxDetect_cloud_;
     PointCloud::Ptr                           cloud_mode_;
+    //PointCloud::Ptr                           cloud_vg;
 
     std::string                               base_frame_name_;
     std::string                               points_topic_name_;
@@ -125,16 +126,19 @@ class BoxDetection{
     }
 
 
-    void get_kitchen_height(PointCloud::Ptr kitchen_cloud_hight){
+    void get_cluster_height(PointCloud::Ptr cluster_cloud_hight){
       std::unordered_map<unsigned int, size_t> plane_height;
-      std::vector<int> kitchen_height;
+      std::vector<int> cluster_points;
       //配列に格納
-      for(int i = 0; i < kitchen_cloud_hight -> points.size(); i++ ){
+      std::cout << "111" << std::endl;
+      //std::cout << "cluster_cloud_hight::"  << cluster_cloud_hight << std::endl;
+      for(size_t i = 0; i < cluster_cloud_hight -> points.size(); i++ ){
         // クラスタリング後の点群の高さを100倍にして配列に格納
-        kitchen_height.push_back(std::round(kitchen_cloud_hight -> points[i].z * 100) );
+      cluster_points.push_back(std::round(cluster_cloud_hight -> points[i].z * 100) );
       }
+      std::cout << "222" << std::endl;
       // 要素の配列があるか
-      for(const auto &x : kitchen_height){
+      for(const auto &x : cluster_points){
         // ある場合、ラベルに値を1追加
         if(plane_height.find(x) != plane_height.end()){
             ++plane_height.at(x);
@@ -144,21 +148,34 @@ class BoxDetection{
             plane_height[x] = 1;
         }
       }
+      std::cout << "333" << std::endl;
       // 最大値の要素のインデックスを取り出す
       auto max_iterator = std::max_element(plane_height.begin(), plane_height.end(),
                                           [](const auto &a, const auto &b) -> bool{return (a.second < b.second);}
                                           );
       mode = max_iterator -> first;
+      std::cout << "333-1" << std::endl;
       mode = mode / 100;
+
+      std::cout << "333-2" << std::endl;
       float mode_low = mode - hight_threshold_;
       float mode_high = mode + hight_threshold_;
-      for(int i = 0; i < kitchen_cloud_hight -> points.size(); i++){
-        if(mode_low < cloud_mode_ -> points[i].z && cloud_mode_ -> points[i].z < mode_high){
-          cloud_mode_ -> points[i].z = mode;
-        }
-        else{}
+      std::cout <<  "mode_low::" << mode_low << std::endl;
+      std::cout << "mode_high::" << mode_high  <<  std::endl;
+      std::cout << "mode::" << mode  <<  std::endl;
+      std::cout << "333-3" << std::endl;
+      std::cout << "cloud_vg::" << cloud_vg  <<  std::endl;
+      std::cout << "cluster_cloud_hight::" << cluster_cloud_hight  <<  std::endl;
+      for(size_t i = 0; i < cluster_cloud_hight -> points.size(); i++){
+
+        //if(mode_low < cloud_vg -> points[i].z && cloud_vg -> points[i].z < mode_high){
+          //std::cout << "444-0" << std::endl;
+          //cloud_vg -> points[i].z = mode;
+        //}
+
       }
-    }//get_kitchen_height
+      std::cout << "444" << std::endl;
+    }//get_cluster_height
 
 
   void DetectPointCb(const sensor_msgs::PointCloud2ConstPtr& pcl_msg){
@@ -191,79 +208,81 @@ class BoxDetection{
         ROS_ERROR("%s", e.what());
       }
 
+        //点群に対しての処理を書く
+        // filtering X limit(念の為)
+        PointCloud::Ptr cloud_cut_x(new PointCloud);
+        pcl::PassThrough<PointT> pass_x;
+        pass_x.setInputCloud (cloud_transformed_);
+        pass_x.setFilterFieldName ("x");
+        pass_x.setFilterLimits (-1.0, 1.5);
+        pass_x.filter (*cloud_cut_x);
+        cloud_cut_x->header.frame_id = base_frame_name_;
+        //std::cout << "cloud_cut_x : " << cloud_cut_x->points.size() << std::endl;
+        cut_x_pub_.publish(cloud_cut_x);
 
-      //点群に対しての処理を書く
-      // filtering X limit(念の為)
-      PointCloud::Ptr cloud_cut_x(new PointCloud);
-      pcl::PassThrough<PointT> pass_x;
-      pass_x.setInputCloud (cloud_transformed_);
-      pass_x.setFilterFieldName ("x");
-      pass_x.setFilterLimits (-1.0, 1.5);
-      pass_x.filter (*cloud_cut_x);
-      cloud_cut_x->header.frame_id = base_frame_name_;
-      //std::cout << "cloud_cut_x : " << cloud_cut_x->points.size() << std::endl;
-      cut_x_pub_.publish(cloud_cut_x);
+        // filtering Z limit（念の為）
+        PointCloud::Ptr cloud_filtered(new PointCloud());
+        pcl::PassThrough<PointT> pass_z;
+        pass_z.setInputCloud (cloud_cut_x);
+        pass_z.setFilterFieldName ("z");
+        pass_z.setFilterLimits (0.0, 1.5);
+        pass_z.filter (*cloud_filtered);
+        cloud_filtered->header.frame_id = base_frame_name_;
+        filter_pub_.publish(cloud_filtered);
 
-      // filtering Z limit（念の為）
-      PointCloud::Ptr cloud_filtered(new PointCloud());
-      pcl::PassThrough<PointT> pass_z;
-      pass_z.setInputCloud (cloud_cut_x);
-      pass_z.setFilterFieldName ("z");
-      pass_z.setFilterLimits (0.0, 1.5);
-      pass_z.filter (*cloud_filtered);
-      cloud_filtered->header.frame_id = base_frame_name_;
-      filter_pub_.publish(cloud_filtered);
+        //ダウンサンプリング
+        PointCloud::Ptr cloud_vg(new PointCloud());
+        pcl::VoxelGrid<PointT> vg;
+        vg.setInputCloud (cloud_filtered);
+        vg.setLeafSize (0.01, 0.01, 0.01);
+        vg.setDownsampleAllData(true);
+        vg.filter (*cloud_vg);
+        cloud_vg->header.frame_id = base_frame_name_;
+        //std::cout << "voxel_grid : " << cloud_vg->points.size() << std::endl;
+        voxel_grid_pub_.publish(cloud_vg);
 
-      //ダウンサンプリング
-      PointCloud::Ptr cloud_vg(new PointCloud());
-      pcl::VoxelGrid<PointT> vg;
-      vg.setInputCloud (cloud_filtered);
-      vg.setLeafSize (0.01, 0.01, 0.01);
-      vg.setDownsampleAllData(true);
-      vg.filter (*cloud_vg);
-      cloud_vg->header.frame_id = base_frame_name_;
-      //std::cout << "voxel_grid : " << cloud_vg->points.size() << std::endl;
-      voxel_grid_pub_.publish(cloud_vg);
+        //クラスタリング
+        //ROS_INFO("4-3");
+        pcl::search::KdTree<PointT>::Ptr box_tree(new pcl::search::KdTree<PointT>);
+        box_tree-> setInputCloud(cloud_vg);
+        std::vector<pcl::PointIndices> box_cluster_indices;
+        pcl::EuclideanClusterExtraction<PointT> ec;
+        ec.setClusterTolerance (0.1); // 2cm
+        ec.setMinClusterSize (1000);
+        ec.setMaxClusterSize (25000);
+        ec.setSearchMethod (box_tree);
+        ec.setInputCloud(cloud_vg);
+        ec.extract (box_cluster_indices);
 
-      //クラスタリング
-      //ROS_INFO("4-3");
-      pcl::search::KdTree<PointT>::Ptr box_tree(new pcl::search::KdTree<PointT>);
-      box_tree-> setInputCloud(cloud_vg);
-      std::vector<pcl::PointIndices> box_cluster_indices;
-      pcl::EuclideanClusterExtraction<PointT> ec;
-      ec.setClusterTolerance (0.1); // 2cm
-      ec.setMinClusterSize (1000);
-      ec.setMaxClusterSize (25000);
-      ec.setSearchMethod (box_tree);
-      ec.setInputCloud(cloud_vg);
-      ec.extract (box_cluster_indices);
-      cloud_vg = cloud_mode_;
-      //検出した平面の高さを均一にする
-      get_kitchen_height(cloud_vg);
+        //可視化
+        visualization_msgs::MarkerArray marker_array;
+        int marker_id[2];
+        int target_index = -1;
 
-      //可視化
-      visualization_msgs::MarkerArray marker_array;
-      int marker_id[2];
-      int target_index = -1;
+        //点群に色をつける
+        pcl::PointCloud <pcl::PointXYZRGB>::Ptr cloud_color(new   pcl::PointCloud <pcl::PointXYZRGB>());
+        pcl::copyPointCloud(*cloud_vg, *cloud_color);
 
-      //点群に色をつける
-      pcl::PointCloud <pcl::PointXYZRGB>::Ptr cloud_color(new   pcl::PointCloud <pcl::PointXYZRGB>());
-      pcl::copyPointCloud(*cloud_vg, *cloud_color);
 
 
       //クラスタを可視化
       try{
-          max_point = cloud_vg->size(); //確認のために使います
-          std::cout << "max_points::" << max_point <<std::endl;
+
+          max_point = cloud_vg->points.size(); //確認のために使います
+          //std::cout << "max_points::" << max_point <<std::endl;
           for(std::vector<pcl::PointIndices>::const_iterator it = box_cluster_indices.begin(),
                                                          it_end = box_cluster_indices.end();
                                                             it != it_end; ++it, ++marker_id[0]){
             pcl::getMinMax3D(*cloud_vg, *it, min_pt_,  max_pt_);
             Eigen::Vector4f cluster_size =  max_pt_ -  min_pt_;
+            //std::cout << "min_pt_::" << min_pt_ << std::endl;
+            //std::cout << "max_pt_::" << max_pt_ << std::endl;
             //std::cout << "cluster_size::" << cluster_size << std::endl;
             center_pt_ = ((max_pt_ - min_pt_) / 2 ) + min_pt_;//  検出したクラスタの中心を計算
 
             if(cluster_size.x() > 0 && cluster_size.y() > 0 && cluster_size.z() > 0){
+                //検出した平面の高さを均一にする
+                get_cluster_height(cloud_vg);
                 visualization_msgs::Marker marker =
                   makeMarker(base_frame_name_, "box", marker_id, min_pt_, max_pt_, 0.0f, 1.0f, 0.0f, 0.5f);
                   // 最も近いクラスタを検出
@@ -403,6 +422,14 @@ class BoxDetection{
     catch (std::exception &e){
       ROS_ERROR("%s", e.what());
     }
+    /* メモリを解放し、引数で与えられたポインタを扱う */
+    cloud_transformed_.reset(new PointCloud());
+    cloud_cut_x.reset(new PointCloud());
+    cloud_filtered.reset(new PointCloud());
+    cloud_vg.reset(new PointCloud());
+    box_tree.reset(new pcl::search::KdTree<PointT>());
+
+
  }//DetectPointCb
 
   /* クラスタを直方体で表示するためのMarkerを作成 */
