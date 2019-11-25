@@ -52,10 +52,7 @@ class BoxDetection{
     ros::Publisher                            entry_gate_pub_;
     ros::Publisher                            cut_x_pub_;
     ros::Publisher                            box_clusters_;
-    ros::Publisher                            upsampring_;
-    ros::Publisher                            entry_gate_clusters_;
     ros::Publisher                            coordinate_point_;
-    ros::Publisher                            entry_gate_cloud_pub_;
 
 
     tf::TransformListener                     listener;
@@ -74,7 +71,6 @@ class BoxDetection{
     std::string                               points_topic_name_;
     /*  Eigen::Vector */
     Eigen::Vector4f                           min_pt_, max_pt_, center_pt_;
-    Eigen::Vector4f                           nearest_min_pt_, nearest_max_pt_, nearest_cluster_;
 
     int                                       edge = 0;
     float                                     cluster_width_, cluster_hight_;
@@ -117,14 +113,55 @@ class BoxDetection{
      voxel_grid_pub_      =  nh_.advertise<sensor_msgs::PointCloud2>("/voxel_grid",1);
      entry_gate_pub_      =  nh_.advertise<sensor_msgs::PointCloud2>("/entry_gate_edge",1);
      box_clusters_        =  nh_.advertise<visualization_msgs::MarkerArray>("box_cluster", 1);
-     upsampring_          =  nh_.advertise<sensor_msgs::PointCloud2>("/upsampring",1);
      coordinate_point_    =  nh_.advertise<visualization_msgs::MarkerArray>("box_point", 1);
-     entry_gate_clusters_ =  nh_.advertise<visualization_msgs::MarkerArray>("entry_gate_cluster", 1);
-     entry_gate_cloud_pub_=  nh_.advertise<sensor_msgs::PointCloud2>("/entry_gate_cloud",1);
-     //ROS_INFO("1");
     }
 
+    void get_cluster_height(PointCloud::Ptr cluster_cloud_hight){
+      std::unordered_map<unsigned int, size_t> plane_height;
+      std::vector<int> cluster_points;
+      //配列に格納
+      //std::cout << "111" << std::endl;
+      //std::cout << "cluster_cloud_hight::"  << cluster_cloud_hight << std::endl;
+      for(size_t i = 0; i < cluster_cloud_hight -> points.size(); i++ ){
+        // クラスタリング後の点群の高さを100倍にして配列に格納
+      cluster_points.push_back(std::round(cluster_cloud_hight -> points[i].z * 100) );
+      }
+      //std::cout << "222" << std::endl;
+      // 要素の配列があるか
+      for(const auto &x : cluster_points){
+        // ある場合、ラベルに値を1追加
+        if(plane_height.find(x) != plane_height.end()){
+            ++plane_height.at(x);
+        }
+        // ない場合、新しいラベルを追加して1を入れる
+        else{
+            plane_height[x] = 1;
+        }
+      }
+      // 最大値の要素のインデックスを取り出す
+      auto max_iterator = std::max_element(plane_height.begin(), plane_height.end(),
+                                          [](const auto &a, const auto &b) -> bool{return (a.second < b.second);}
+                                          );
+      mode = max_iterator -> first;
+      mode = mode / 100;
 
+      float mode_low = mode - hight_threshold_;
+      float mode_high = mode + hight_threshold_;
+
+      for(size_t i = 0; i < cluster_cloud_hight -> points.size(); i++){
+        try{
+          if(mode_low < cluster_cloud_hight -> points[i].z && cluster_cloud_hight -> points[i].z < mode_high){
+            cluster_cloud_hight -> points[i].z = mode;
+          }
+        }
+        catch (std::exception &e){
+          ROS_ERROR("%s", e.what());
+          ROS_ERROR("in the get_cluster_height");
+        }
+
+      }
+      //std::cout << "444" << std::endl;
+    }//get_cluster_height
 
 
 
@@ -139,10 +176,7 @@ class BoxDetection{
            if (base_frame_name_.empty() == false) {//フレームの有無
                try {
                    listener.waitForTransform(base_frame_name_, from_msg_cloud.header.frame_id, ros::Time(0), ros::Duration(1.0));
-                   //std::cout << from_msg_cloud.header.frame_id << std::endl;
-                   //cloud_transformed_.reset(new PointCloud());//初期化
                    pcl_ros::transformPointCloud(base_frame_name_, ros::Time(0), from_msg_cloud, from_msg_cloud.header.frame_id,  *cloud_transformed_, listener);
-                   //std::cout << "points:" << cloud_transformed_->points.size() << std::endl;
                    cloud_transformed_->header.frame_id = base_frame_name_; //pubするときにfame_nameが消えるから、直接入力しなｋればならない
                    transform_.publish(*cloud_transformed_);
                }
@@ -151,8 +185,6 @@ class BoxDetection{
                    return;
                }
            }
-           //ここに cloud_transformed_ に対するフィルタ処理を書く
-           //ROS_INFO("width: %u, height: %u", cloud_transformed_->width, cloud_transformed_->height);
       }
       catch (std::exception &e){
         ROS_ERROR("%s", e.what());
@@ -160,7 +192,7 @@ class BoxDetection{
       }
 
       //点群に対しての処理を書く
-      // filtering X limit(念の為)
+      // filtering X limit
       PointCloud::Ptr cloud_cut_x(new PointCloud);
       pcl::PassThrough<PointT> pass_x;
       pass_x.setInputCloud (cloud_transformed_);
@@ -168,10 +200,9 @@ class BoxDetection{
       pass_x.setFilterLimits (0.0, 1.0);
       pass_x.filter (*cloud_cut_x);
       cloud_cut_x->header.frame_id = base_frame_name_;
-      //std::cout << "cloud_cut_x : " << cloud_cut_x->points.size() << std::endl;
       cut_x_pub_.publish(cloud_cut_x);
 
-      // filtering Z limit（念の為）
+      // filtering Z limit
       PointCloud::Ptr cloud_filtered(new PointCloud());
       pcl::PassThrough<PointT> pass_z;
       pass_z.setInputCloud (cloud_cut_x);
@@ -189,11 +220,9 @@ class BoxDetection{
       vg.setDownsampleAllData(true);
       vg.filter (*cloud_vg);
       cloud_vg->header.frame_id = base_frame_name_;
-      //std::cout << "voxel_grid : " << cloud_vg->points.size() << std::endl;
       voxel_grid_pub_.publish(cloud_vg);
 
       //クラスタリング
-      //ROS_INFO("4-3");
       pcl::search::KdTree<PointT>::Ptr box_tree(new pcl::search::KdTree<PointT>);
       box_tree-> setInputCloud(cloud_vg);
       std::vector<pcl::PointIndices> box_cluster_indices;
@@ -215,25 +244,19 @@ class BoxDetection{
 
       //クラスタを可視化
       try{
-          //max_point = cloud_vg->points.size(); //確認のために使います
-          //std::cout << "max_points::" << max_point <<std::endl;
           for(std::vector<pcl::PointIndices>::const_iterator it = box_cluster_indices.begin(),
                                                          it_end = box_cluster_indices.end();
                                                             it != it_end; ++it){
+
             pcl::getMinMax3D(*cloud_vg, *it, min_pt_,  max_pt_);
             Eigen::Vector4f cluster_size =  max_pt_ - min_pt_;
-            //std::cout << "min_pt_::" << min_pt_ << std::endl;
-            //std::cout << "max_pt_::" << max_pt_ << std::endl;
-            //std::cout << "cluster_size::" << cluster_size << std::endl;
-            center_pt_ = ((max_pt_ - min_pt_) / 2 ) + min_pt_;//  検出したクラスタの中心を計算
-            //std::cout << "entry_gate::" << center_pt_ << std::endl;
-            if(cluster_size.x() > 0 && cluster_size.y() > 0 && cluster_size.z() > 0){
-                //検出した平面の高さを均一にする
-                //get_cluster_height(cloud_vg);
+            center_pt_ = ((max_pt_ - min_pt_) / 2 ) + min_pt_;
 
+            if(cluster_size.x() > 0 && cluster_size.y() > 0 && cluster_size.z() > 0){
                 visualization_msgs::Marker marker =  makeMarker(base_frame_name_, "box", min_pt_, max_pt_, 0.0f, 1.0f, 0.0f, 0.5f);
                   // 最も近いクラスタを検出
                   if(target_index < 0){
+                    //初めに見つけたクラスタは一旦いれとく
                     target_index = marker_array.markers.size();
                   }
                   else{
@@ -243,7 +266,6 @@ class BoxDetection{
                     float d2 = sqrt(pow( marker.pose.position.x , 2) + pow( marker.pose.position.y , 2));
                     if(d2 < d1){
                       target_index = marker_array.markers.size();
-                      //std::cout << "target_index:" << target_index << std::endl;
                     }
                   }//else
                   marker_array.markers.push_back(marker);
@@ -258,17 +280,17 @@ class BoxDetection{
           ROS_ERROR("%s", e.what());
           ROS_ERROR("visualing_cluster");
         }
-        //std::cout << "00-2" << std::endl;
 
-        //クラスタ内の点群だけ使用
+        //最も近いクラスタ内の点群だけ使用
         try{
+
           for(std::vector<pcl::PointIndices>::const_iterator it = box_cluster_indices.begin(),
                                                          it_end = box_cluster_indices.end();
                                                             it != it_end; ++it){
             for(std::vector<int>::const_iterator pit = it-> indices.begin(); pit != it-> indices.end(); pit++){
-                if(min_pt_.x() < cloud_vg->points[*pit].x  && cloud_vg->points[*pit].x < max_pt_.x()
+                if(min_pt_.z() < cloud_vg->points[*pit].z  && cloud_vg->points[*pit].z < max_pt_.z()
                     && min_pt_.y() < cloud_vg->points[*pit].y  && cloud_vg->points[*pit].y < max_pt_.y()){
-                      //std::cout << "000" << std::endl;
+                      target_marker();
                       cloud_color-> points[*pit].r = 255;
                       cloud_color-> points[*pit].g = 0;
                       cloud_color-> points[*pit].b = 0;
@@ -288,8 +310,7 @@ class BoxDetection{
               marker_array.markers[target_index].color.g = 0.0f;
               marker_array.markers[target_index].color.b = 1.0f;
               marker_array.markers[target_index].color.a = 0.5f;
-              target_marker(target_index);
-              //std::cout << "target_index::" << target_index << std::endl;
+              //target_marker();
             }
               box_clusters_.publish(marker_array);
               entry_gate_pub_.publish(cloud_color);
@@ -348,10 +369,9 @@ class BoxDetection{
       }
 
 
-  void target_marker(int target_index){
+  void target_marker(){
  		visualization_msgs::MarkerArray marker;
     std::string   points_ns[3] = {"min_pt","center_pt","max_pt"};
-    std::cout << "target_index" << target_index << std::endl;
 
         marker.markers.resize(3);
      		marker.markers[0].header.frame_id = base_frame_name_;
@@ -417,7 +437,6 @@ class BoxDetection{
         marker.markers[2].pose.orientation.z = 0;
         marker.markers[2].pose.orientation.w = 1;
 
-
     coordinate_point_.publish(marker);
 
  	}//target_marker
@@ -434,7 +453,6 @@ int main(int argc, char *argv[]){
   ros::init(argc, argv, "box_detection_node");
   /* BoxDetection のインスタンスを作成 */
   BoxDetection box_detection_node;
-  ROS_INFO("Hello Point Cloud!");
   while (ros::ok()){
     ros::Duration(0.1).sleep();
     ros::spinOnce();
