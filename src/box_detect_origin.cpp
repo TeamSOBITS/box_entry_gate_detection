@@ -59,6 +59,7 @@ class BoxDetection{
 
 
     tf::TransformListener                     listener;
+    tf::TransformBroadcaster                  entry_gate_center;
 
 
     PointCloud::Ptr                           pcl_cloud_;
@@ -277,34 +278,7 @@ class BoxDetection{
                 marker_array.markers[target_index].color.b = 1.0f;
                 marker_array.markers[target_index].color.a = 0.5f;
                 target_marker("box");
-                //点群の配列を確認
-                /*
-                int i = 0;
-                for(int num = min_pt_.x();num < max_pt_.x(); num++){
-                  std::cout << "aaa" << std::endl;
-                        if(i < 100){
-                              cloud_color-> points[num].r = 255;
-                              cloud_color-> points[num].g = 0;
-                              cloud_color-> points[num].b = 0;
-                        }
-                        else if(num > 100 && num < 300){
-                              cloud_color-> points[num].r = 150;
-                              cloud_color-> points[num].g = 150;
-                              cloud_color-> points[num].b = 0;
-                        }
-                        else if(num > 300 && num < 1000){
-                              cloud_color-> points[num].r = 0;
-                              cloud_color-> points[num].g = 150;
-                              cloud_color-> points[num].b = 150;
-                        }
-                        else if(num > 1000 && num < 1500){
-                              cloud_color-> points[num].r = 0;
-                              cloud_color-> points[num].g = 0;
-                              cloud_color-> points[num].b = 255;
-                        }
-                }
-                */
-
+                std::cout << "target_index::" << target_index << std::endl;
               }
 
                 box_clusters_.publish(marker_array);

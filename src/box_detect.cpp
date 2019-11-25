@@ -112,6 +112,65 @@ class BoxDetection{
      //ROS_INFO("1");
     }
 
+    //ここだけもってきたから宣言してない変数だらけ
+    void get_cluster_height(PointCloud::Ptr cluster_cloud_hight){
+      std::unordered_map<unsigned int, size_t> plane_height;
+      std::vector<int> cluster_points;
+      //配列に格納
+      //std::cout << "111" << std::endl;
+      //std::cout << "cluster_cloud_hight::"  << cluster_cloud_hight << std::endl;
+      for(size_t i = 0; i < cluster_cloud_hight -> points.size(); i++ ){
+        // クラスタリング後の点群の高さを100倍にして配列に格納
+      cluster_points.push_back(std::round(cluster_cloud_hight -> points[i].z * 100) );
+      }
+      //std::cout << "222" << std::endl;
+      // 要素の配列があるか
+      for(const auto &x : cluster_points){
+        // ある場合、ラベルに値を1追加
+        if(plane_height.find(x) != plane_height.end()){
+            ++plane_height.at(x);
+        }
+        // ない場合、新しいラベルを追加して1を入れる
+        else{
+            plane_height[x] = 1;
+        }
+      }
+      //std::cout << "333" << std::endl;
+      // 最大値の要素のインデックスを取り出す
+      auto max_iterator = std::max_element(plane_height.begin(), plane_height.end(),
+                                          [](const auto &a, const auto &b) -> bool{return (a.second < b.second);}
+                                          );
+      mode = max_iterator -> first;
+      //std::cout << "333-1" << std::endl;
+      mode = mode / 100;
+
+      //std::cout << "333-2" << std::endl;
+      float mode_low = mode - hight_threshold_;
+      float mode_high = mode + hight_threshold_;
+      //std::cout <<  "mode_low::" << mode_low << std::endl;
+      //std::cout << "mode_high::" << mode_high  <<  std::endl;
+      //std::cout << "mode::" << mode  <<  std::endl;
+      //std::cout << "333-3" << std::endl;
+      //std::cout << "cloud_vg::" << cloud_vg  <<  std::endl;
+      //std::cout << "cluster_cloud_hight::" << cluster_cloud_hight  <<  std::endl;
+      for(size_t i = 0; i < cluster_cloud_hight -> points.size(); i++){
+        //std::cout << "i::" << i << std::endl;
+        //std::cout << "cluster_cloud_hight::" << cluster_cloud_hight->points[i].z  <<  std::endl;
+        try{
+          if(mode_low < cluster_cloud_hight -> points[i].z && cluster_cloud_hight -> points[i].z < mode_high){
+            //std::cout << "444-0";
+            cluster_cloud_hight -> points[i].z = mode;
+            //std::cout << "change::" << cluster_cloud_hight->points[i].z  <<  std::endl;
+          }
+        }
+        catch (std::exception &e){
+          ROS_ERROR("%s", e.what());
+          ROS_ERROR("in the get_cluster_height");
+        }
+
+      }
+      //std::cout << "444" << std::endl;
+    }//get_cluster_height
 
   void DetectPointCb(const sensor_msgs::PointCloud2ConstPtr& pcl_msg){
       PointCloud::Ptr cloud_transformed_(new PointCloud());//初期化
