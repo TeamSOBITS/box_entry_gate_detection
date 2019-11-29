@@ -219,3 +219,7 @@ add_dependencies(box_detect_cluster ${PROJECT_NAME}_generate_messages_cpp)
 add_executable(box_origin src/box_detect_origin.cpp)
 target_link_libraries(box_origin ${PCL_LIBRARIES} ${catkin_LIBRARIES})
 add_dependencies(box_origin ${PROJECT_NAME}_generate_messages_cpp)
+
+add_executable(topic_saver src/topic_saver.cpp)
+target_link_libraries(topic_saver ${PCL_LIBRARIES} ${catkin_LIBRARIES})
+add_dependencies(topic_saver ${PROJECT_NAME}_generate_messages_cpp)

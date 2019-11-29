@@ -221,7 +221,7 @@ class BoxDetection{
       //クラスタを可視化
       try{
           max_point = cloud_transformed_->size(); //確認のために使います
-          std::cout << "max_points::" << max_point <<std::endl;
+          //std::cout << "max_points::" << max_point <<std::endl;
           for(std::vector<pcl::PointIndices>::const_iterator it = box_cluster_indices.begin(),
                                                          it_end = box_cluster_indices.end();
                                                             it != it_end; ++it, ++marker_id[0]){
@@ -229,7 +229,7 @@ class BoxDetection{
             Eigen::Vector4f cluster_size =  max_pt_ -  min_pt_;
             //std::cout << "cluster_size::" << cluster_size << std::endl;
 
-            std::cout << "min_pt_::" << min_pt_ << std::endl;
+            //std::cout << "min_pt_::" << min_pt_ << std::endl;
             std::cout << "max_pt_::" << max_pt_ << std::endl;
             center_pt_ = ((max_pt_ - min_pt_) / 2 ) + min_pt_;//  検出したクラスタの中心を計算
 
