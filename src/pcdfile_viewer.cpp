@@ -36,7 +36,7 @@ main ()
 {
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
 
-    pcl::io::loadPCDFile ("/home/rg-25/catkin_ws/src/box_entry_gate_detection/pcd/bin.pcd", *cloud);
+    pcl::io::loadPCDFile ("/home/rg-25/catkin_ws/src/box_entry_gate_detection/pcd/saved_PointCloud_0.pcd", *cloud);
 
     pcl::visualization::CloudViewer viewer("Cloud Viewer");
 

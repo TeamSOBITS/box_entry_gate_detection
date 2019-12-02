@@ -97,7 +97,7 @@ class BoxDetection{
      ros::param::get("base_frame_name", base_frame_name_);
 
      base_frame_name_ = "base_footprint";//camera_depth_optical_frame
-     points_topic_name_ = "/camera/depth/points" ;
+     points_topic_name_ = "/sensor_data" ;
 
      ROS_INFO("0");
      cloud_sub_ = nh_.subscribe(points_topic_name_, 1, &BoxDetection::DetectPointCb, this);

@@ -7,7 +7,7 @@
 
 int main(){
   pcl::PointCloud<pcl::PointXYZ> cloud;
-  pcl::io::loadPCDFile("/home/rg-25/catkin_ws/src/box_entry_gate_detection/pcd/bin_ASCII_edited.pcd", cloud);
+  pcl::io::loadPCDFile("/home/rg-25/catkin_ws/src/box_entry_gate_detection/pcd/saved_PointCloud_0.pcd", cloud);
 
   int save_count = 0;
 
@@ -15,13 +15,13 @@ int main(){
 
   if ((cloud.height * cloud.width) == 0)  return 0;
   //std::stringstream filename1;
-  //filename1 << "/home/rogp-11/catkin_ws/src/pcl_matcher_real/pcd/" << save_count << ".png";
+  //filename1 << "/home/rg-25/catkin_ws/src/pcl_matcher_real/pcd/" << save_count << ".png";
   //cv::imwrite( filename1.str(), color_img );
   //std::cout << filename1.str() << " saved." << std::endl;
   std::stringstream filename2;
-  filename2 << "/home/rg-25/catkin_ws/src/box_entry_gate_detection/pcd/" << "bin_binary" << ".pcd";
+  filename2 << "/home/rg-25/catkin_ws/src/box_entry_gate_detection/pcd/" << "bin_ASCII" << ".pcd";
   //pcl::io::savePCDFileBinary( filename2.str(), input_cloud );
-  pcl::io::savePCDFile( filename2.str(), cloud, true );
+  pcl::io::savePCDFile( filename2.str(), cloud, false );
   std::cout << filename2.str() << " saved." << std::endl;
   save_count++;
   usleep( 300000 );
