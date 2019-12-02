@@ -1,0 +1,13 @@
+<launch>
+    <!-- urdf -->
+        <include file="$(find sobit_mini_description)/launch/display.launch"/>
+    <!-- rviz -->
+         <node pkg="rviz" type="rviz" name="rviz" args= "-d $(find box_entry_gate_detection)/rviz/box_detect.rviz"/>
+
+    <!-- Data Path -->
+        <param name="data_path" type="str" value="/home/rg-25/catkin_ws/src/box_entry_gate_detection/pcd/saved_PointCloud_0.pcd"/>
+
+    <!-- PointCloud Publisher Node -->
+        <node pkg="box_entry_gate_detection" name="for_experiment_node" type="for_experiment_publisher" output = "screen"/>
+
+</launch>
