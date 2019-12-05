@@ -11,8 +11,6 @@ int main(){
 
   int save_count = 0;
 
-  //pcl_ros::transformPointCloud("/base_link", ros::Time(0), cloud, camera_frame_name, cloud, listerner);
-
   if ((cloud.height * cloud.width) == 0)  return 0;
   //std::stringstream filename1;
   //filename1 << "/home/rogp-11/catkin_ws/src/pcl_matcher_real/pcd/" << save_count << ".png";
