@@ -7,20 +7,23 @@
 
 int main(){
   pcl::PointCloud<pcl::PointXYZ> cloud;
-  pcl::io::loadPCDFile("/home/rg-25/catkin_ws/src/box_entry_gate_detection/pcd/bin_ASCII.pcd", cloud);
-
+  std::stringstream load_file;
+  std::stringstream save_file;
+  std::string pcdfile;
   int save_count = 0;
 
-  if ((cloud.height * cloud.width) == 0)  return 0;
-  //std::stringstream filename1;
-  //filename1 << "/home/rogp-11/catkin_ws/src/pcl_matcher_real/pcd/" << save_count << ".png";
-  //cv::imwrite( filename1.str(), color_img );
-  //std::cout << filename1.str() << " saved." << std::endl;
-  std::stringstream filename2;
-  filename2 << "/home/rg-25/catkin_ws/src/box_entry_gate_detection/pcd/" << "bin_binary" << ".pcd";
-  //pcl::io::savePCDFileBinary( filename2.str(), input_cloud );
-  pcl::io::savePCDFile( filename2.str(), cloud, true );
-  std::cout << filename2.str() << " saved." << std::endl;
+  ros::param::get("pcdfile", pcdfile);
+
+  //std::cout << "pcdファイルを入力してください" << std::endl;
+  //std::cin >> pcdfile;
+  load_file << "/home/rg-25/catkin_ws/src/box_entry_gate_detection/pcd/ascii/" << pcdfile;
+  pcl::io::loadPCDFile(load_file.str(), cloud);
+  std::cout << load_file.str() << " load." << std::endl;
+  if ((cloud.height * cloud.width) == 0){return 0;}
+
+  save_file << "/home/rg-25/catkin_ws/src/box_entry_gate_detection/pcd/binary/" << pcdfile;
+  pcl::io::savePCDFile( save_file.str(), cloud, false );
+  std::cout << save_file.str() << " saved." << std::endl;
   save_count++;
   usleep( 300000 );
 

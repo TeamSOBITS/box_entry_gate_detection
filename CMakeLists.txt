@@ -223,3 +223,11 @@ add_dependencies(box_origin ${PROJECT_NAME}_generate_messages_cpp)
 add_executable(topic_saver src/topic_saver.cpp)
 target_link_libraries(topic_saver ${PCL_LIBRARIES} ${catkin_LIBRARIES})
 add_dependencies(topic_saver ${PROJECT_NAME}_generate_messages_cpp)
+
+add_executable(pcdfile_saver_binary src/pcdfile_saver_binary.cpp)
+target_link_libraries(pcdfile_saver_binary ${PCL_LIBRARIES} ${catkin_LIBRARIES})
+add_dependencies(pcdfile_saver_binary ${PROJECT_NAME}_generate_messages_cpp)
+
+add_executable(scene_model src/scene_model.cpp)
+target_link_libraries(scene_model ${PCL_LIBRARIES} ${catkin_LIBRARIES})
+add_dependencies(scene_model ${PROJECT_NAME}_generate_messages_cpp)

@@ -13,7 +13,7 @@
 		<param name="depth_range_min_z" type="double" value="0.1"/>
 		<param name="depth_range_max_z" type="double" value="1.2"/><!--1.6-->
 
-		<node pkg="box_detect" type="box_detect.cpp" name="box_detection_node" output="screen"/>
+		<node pkg="box_detect" type="box_detect" name="box_detection_node" output="screen"/>
 
 	</group>
 

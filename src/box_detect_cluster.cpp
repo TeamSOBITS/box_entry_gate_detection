@@ -57,7 +57,8 @@ class BoxDetection{
 
 
     tf::TransformListener                     listener;
-    tf::TransformListener                     entry_gate;
+    tf::TransformBroadcaster                  br;
+    tf::Transform                             entry_gate;
 
 
     PointCloud::Ptr                           pcl_cloud_;
@@ -72,7 +73,7 @@ class BoxDetection{
     std::string                               points_topic_name_;
     /*  Eigen::Vector */
     Eigen::Vector4f                           min_pt_, max_pt_;
-    Eigen::Vector4f                           box_min_pt_, box_max_pt_;
+    Eigen::Vector4f                           box_min_pt_, box_max_pt_,box_center_pt_;
     Eigen::Vector4f                           entry_gate_min_pt_, entry_gate_max_pt_, entry_gate_center_pt_;
 
     int                                       edge = 0;
@@ -96,7 +97,7 @@ class BoxDetection{
      ros::param::get("depth_range_max_z", depth_z_max_);
      ros::param::get("base_frame_name", base_frame_name_);
 
-     base_frame_name_ = "base_footprint";//camera_depth_optical_frame
+     base_frame_name_ = "base_footprint";//default
      points_topic_name_ = "/sensor_data" ;
 
      ROS_INFO("0");
@@ -201,7 +202,7 @@ class BoxDetection{
       pcl::PassThrough<PointT> pass_x;
       pass_x.setInputCloud (cloud_transformed_);
       pass_x.setFilterFieldName ("x");
-      pass_x.setFilterLimits (0.0, 1.0);
+      pass_x.setFilterLimits (depth_x_min_, depth_x_max_);
       pass_x.filter (*cloud_cut_x);
       cloud_cut_x->header.frame_id = base_frame_name_;
       cut_x_pub_.publish(cloud_cut_x);
@@ -211,7 +212,7 @@ class BoxDetection{
       pcl::PassThrough<PointT> pass_z;
       pass_z.setInputCloud (cloud_cut_x);
       pass_z.setFilterFieldName ("z");
-      pass_z.setFilterLimits (0.0, 2.0);
+      pass_z.setFilterLimits (depth_z_min_, depth_z_max_);
       pass_z.filter (*cloud_filtered);
       cloud_filtered->header.frame_id = base_frame_name_;
       filter_pub_.publish(cloud_filtered);
@@ -262,6 +263,7 @@ class BoxDetection{
                     target_index = marker_array.markers.size();
                     box_max_pt_ = max_pt_;
                     box_min_pt_ = min_pt_;
+                    box_center_pt_ = max_pt_ - min_pt_;
                   }
                   else{
                     // d1 : target_indexのクラスタまでの距離
@@ -330,10 +332,10 @@ class BoxDetection{
               marker_array.markers[target_index].color.a = 0.5f;
               box_marker();
             }
-
               box_clusters_.publish(marker_array);
               entry_gate_pub_.publish(cloud_color);
           }
+
 
     }//try
     catch (std::exception &e){
@@ -513,7 +515,20 @@ class BoxDetection{
 
  	}//box_marker
 
-  /* 検出しなかったとき */
+  bool send_tf_frame(){
+    if(box_center_pt_.x() != 0 && entry_gate_center_pt_.y() != 0 && entry_gate_center_pt_.z() != 0 ){
+      entry_gate.setOrigin( tf::Vector3(box_min_pt_.x(), entry_gate_center_pt_.y(), entry_gate_center_pt_.z()) );
+      entry_gate.setRotation( tf::Quaternion(0, 0, 0) );
+      br.sendTransform(tf::StampedTransform(entry_gate, ros::Time(0), base_frame_name_, "entry_gate_point" ));//TFの送信
+    }//if
+    else{
+      std::cout << "no entry_gate" << std::endl;
+    }
+    return true;
+  }//send_tf_frame
+
+
+  // 検出しなかったとき
   void no_detect(std::string msg){
    ROS_ERROR("No detect target");
    std::cout << "Reason:\t" << msg << std::endl;
@@ -526,6 +541,7 @@ int main(int argc, char *argv[]){
   /* BoxDetection のインスタンスを作成 */
   BoxDetection box_detection_node;
   while (ros::ok()){
+    box_detection_node.send_tf_frame();
     ros::Duration(0.1).sleep();
     ros::spinOnce();
   }

@@ -1,13 +1,27 @@
 <launch>
     <!-- urdf -->
         <include file="$(find sobit_mini_description)/launch/display.launch"/>
-    <!-- rviz -->
-         <node pkg="rviz" type="rviz" name="rviz" args= "-d $(find box_entry_gate_detection)/rviz/for_experiment.rviz"/>
+
+    <arg name="filename" default="true" /> <!--ここに入力引数を記述-->
+
+    <!-- PCD file saver binary -->
+        <param name="pcdfile" type="str" value="$(arg filename)"/>
 
     <!-- Data Path -->
-        <param name="data_path" type="str" value="/home/rg-25/catkin_ws/src/box_entry_gate_detection/pcd/bin_binary.pcd"/>
+        <param name="data_path" type="str" value="$(find box_entry_gate_detection)/pcd/binary/$(arg filename)"/>
 
     <!-- PointCloud Publisher Node -->
-        <node pkg="box_entry_gate_detection" name="for_experiment_node" type="scene_model" output = "screen"/>
+        <node pkg="box_entry_gate_detection" type="scene_model" name="for_experiment_node"  output = "screen"/>
+
+    <!-- box_entry_gate_detection -->
+    <group ns = "box_detect">
+  		<param name="depth_range_min_x" type="double" value="0.1"/>
+  		<param name="depth_range_max_x" type="double" value="2.0"/>
+  		<param name="depth_range_min_z" type="double" value="0.1"/>
+  		<param name="depth_range_max_z" type="double" value="1.2"/><!--1.6-->
+  		<node pkg="box_entry_gate_detection" type="box_detect_cluster" name="box_detection_node" output="screen"/>
+ <!-- rviz -->
+      <node pkg="rviz" type="rviz" name="rviz" args= "-d $(find box_entry_gate_detection)/rviz/for_experiment.rviz"/>
+  	</group>
 
 </launch>
