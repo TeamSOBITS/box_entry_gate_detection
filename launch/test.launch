@@ -1,17 +1,15 @@
 <launch>
     <!-- urdf -->
-        <include file="$(find sobit_mini_description)/launch/display.launch"/>
-
-    <arg name="filename" default="true" /> <!--ここに入力引数を記述-->
-
+      <include file="$(find sobit_mini_description)/launch/display.launch"/>
     <!-- PCD file saver binary -->
-        <param name="pcdfile" type="str" value="$(arg filename)"/>
+      <arg name="filename" default="true" /> <!--ここに入力引数を記述-->
+      <param name="pcdfile" type="str" value="$(arg filename)"/>
+      <node pkg="box_entry_gate_detection" type="pcdfile_saver_binary" name="pcd_file_save_node" output = "screen"/>
 
     <!-- Data Path -->
-        <param name="data_path" type="str" value="$(find box_entry_gate_detection)/pcd/binary/$(arg filename)"/>
-
+      <param name="data_path" type="str" value="$(find box_entry_gate_detection)/pcd/binary/$(arg filename)"/>
     <!-- PointCloud Publisher Node -->
-        <node pkg="box_entry_gate_detection" type="scene_model" name="for_experiment_node"  output = "screen"/>
+      <node pkg="box_entry_gate_detection" type="scene_model" name="for_experiment_node"  output = "screen"/>
 
     <!-- box_entry_gate_detection -->
     <group ns = "box_detect">

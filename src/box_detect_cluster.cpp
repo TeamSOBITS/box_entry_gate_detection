@@ -19,17 +19,6 @@
 #include <visualization_msgs/MarkerArray.h>
 /*平方根*/
 #include <cmath>
-/*アップサンプリング*/
-#include <pcl/surface/mls.h>
-/* 最頻値を求める */
-#include <string>
-#include <algorithm>                              //std::max_elementのため
-#include <vector>
-#include <unordered_map>                          //unordered_mapのため
-#include <iterator>                               //std::distanceを使用するため
-
-
-
 
 
 typedef pcl::PointXYZ PointT;
@@ -61,13 +50,9 @@ class BoxDetection{
     tf::Transform                             entry_gate;
 
 
-    PointCloud::Ptr                           pcl_cloud_;
     PointCloud::Ptr                           cloud_transformed_;
-    PointCloud::Ptr                           cluster_max_,cluster_min_;
-    PointCloud::Ptr                           entry_gate_cloud_;
     PointCloud::Ptr                           boxDetect_cloud_;
     PointCloud::Ptr                           cloud_mode_;
-    //PointCloud::Ptr                           cloud_vg;
 
     std::string                               base_frame_name_;
     std::string                               points_topic_name_;
@@ -76,13 +61,7 @@ class BoxDetection{
     Eigen::Vector4f                           box_min_pt_, box_max_pt_,box_center_pt_;
     Eigen::Vector4f                           entry_gate_min_pt_, entry_gate_max_pt_, entry_gate_center_pt_;
 
-    int                                       edge = 0;
-    float                                     cluster_width_, cluster_hight_;
-    float                                     max_cloud_x_, max_cloud_z_, min_cloud_x_, min_cloud_z_;
     float                                     depth_x_max_, depth_x_min_, depth_z_max_, depth_z_min_;
-    float                                     threshold_value = 0.05; //閾値[m]
-    float                                     hight_threshold_ = 0.15; //閾値[m]
-    float                                     mode;//最頻値
 
 
   public:
@@ -98,7 +77,7 @@ class BoxDetection{
      ros::param::get("base_frame_name", base_frame_name_);
 
      base_frame_name_ = "base_footprint";//default
-     points_topic_name_ = "/sensor_data" ;
+     points_topic_name_ = "/sensor_data";
 
      ROS_INFO("0");
      cloud_sub_ = nh_.subscribe(points_topic_name_, 1, &BoxDetection::DetectPointCb, this);
@@ -120,54 +99,6 @@ class BoxDetection{
      target_marker_       =  nh_.advertise<visualization_msgs::MarkerArray>("target_point", 1);
      box_marker_          =  nh_.advertise<visualization_msgs::MarkerArray>("box_point", 1);
     }
-
-    void get_cluster_height(PointCloud::Ptr cluster_cloud_hight){
-      std::unordered_map<unsigned int, size_t> plane_height;
-      std::vector<int> cluster_points;
-      //配列に格納
-      //std::cout << "111" << std::endl;
-      //std::cout << "cluster_cloud_hight::"  << cluster_cloud_hight << std::endl;
-      for(size_t i = 0; i < cluster_cloud_hight -> points.size(); i++ ){
-        // クラスタリング後の点群の高さを100倍にして配列に格納
-      cluster_points.push_back(std::round(cluster_cloud_hight -> points[i].z * 100) );
-      }
-      //std::cout << "222" << std::endl;
-      // 要素の配列があるか
-      for(const auto &x : cluster_points){
-        // ある場合、ラベルに値を1追加
-        if(plane_height.find(x) != plane_height.end()){
-            ++plane_height.at(x);
-        }
-        // ない場合、新しいラベルを追加して1を入れる
-        else{
-            plane_height[x] = 1;
-        }
-      }
-      // 最大値の要素のインデックスを取り出す
-      auto max_iterator = std::max_element(plane_height.begin(), plane_height.end(),
-                                          [](const auto &a, const auto &b) -> bool{return (a.second < b.second);}
-                                          );
-      mode = max_iterator -> first;
-      mode = mode / 100;
-
-      float mode_low = mode - hight_threshold_;
-      float mode_high = mode + hight_threshold_;
-
-      for(size_t i = 0; i < cluster_cloud_hight -> points.size(); i++){
-        try{
-          if(mode_low < cluster_cloud_hight -> points[i].z && cluster_cloud_hight -> points[i].z < mode_high){
-            cluster_cloud_hight -> points[i].z = mode;
-          }
-        }
-        catch (std::exception &e){
-          ROS_ERROR("%s", e.what());
-          ROS_INFO("in the get_cluster_height");
-        }
-
-      }
-      //std::cout << "444" << std::endl;
-    }//get_cluster_height
-
 
 
   void DetectPointCb(const sensor_msgs::PointCloud2ConstPtr& pcl_msg){

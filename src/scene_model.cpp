@@ -12,6 +12,7 @@
 #include <pcl/io/pcd_io.h>
 /* sensor_msgs */
 #include <sensor_msgs/PointCloud2.h>
+#include "unistd.h"
 
 
 
@@ -121,7 +122,7 @@ class PointcloudPublisherNode
     sensor_cloud.header.frame_id = "camera_rgb_optical_frame";
 
     /* sensor_cloudをパブリッシュ */
-    ros::Rate loop_rate(10);
+    ros::Rate loop_rate(3);
     while (ros::ok()){
       this->pub_cloud_.publish(cloud);
       this->pub_cloud_sensor_.publish(sensor_cloud);
@@ -134,8 +135,7 @@ class PointcloudPublisherNode
   public:
     PointcloudPublisherNode()
       : nh_()
-      , pnh_("~") //"~"を引数に初期化することで、このノードのプライベートな名前空間を使う設定になる
-    {
+      , pnh_("~"){
       ros::param::get("data_path", this->data_path_);
       std::cout << "====================\nLoad Data" << std::endl;
       std::cout << "data_path = "  << this->data_path_ << std::endl;
@@ -148,8 +148,7 @@ class PointcloudPublisherNode
     }
 };
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]){
   //ノードの初期化
   ros::init(argc, argv, "pointcloud_publisher_node");
   //PointcloudPublisherNodeのインスタンスを作成
