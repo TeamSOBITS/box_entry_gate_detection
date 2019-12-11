@@ -450,7 +450,7 @@ class BoxDetection{
     if(box_center_pt_.x() != 0 && entry_gate_center_pt_.y() != 0 && entry_gate_center_pt_.z() != 0 ){
       entry_gate.setOrigin( tf::Vector3(box_min_pt_.x(), entry_gate_center_pt_.y(), entry_gate_center_pt_.z()) );
       entry_gate.setRotation( tf::Quaternion(0, 0, 0) );
-      br.sendTransform(tf::StampedTransform(entry_gate, ros::Time(0), base_frame_name_, "entry_gate_point" ));//TFの送信
+      br.sendTransform(tf::StampedTransform(entry_gate, ros::Time(0), base_frame_name_, "input_port" ));//TFの送信
     }//if
     else{
       std::cout << "no entry_gate" << std::endl;
