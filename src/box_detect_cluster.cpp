@@ -20,6 +20,8 @@
 /*平方根*/
 #include <cmath>
 
+#include <chrono>//時間計測
+
 
 typedef pcl::PointXYZ PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
@@ -61,25 +63,38 @@ class BoxDetection{
     Eigen::Vector4f                           box_min_pt_, box_max_pt_,box_center_pt_;
     Eigen::Vector4f                           entry_gate_min_pt_, entry_gate_max_pt_, entry_gate_center_pt_;
 
-    float                                     depth_x_max_, depth_x_min_, depth_z_max_, depth_z_min_;
+    double                                    depth_x_max_, depth_x_min_, depth_z_max_, depth_z_min_;
+    double                                    cluster_ss_;
 
+
+    bool                                      input_port_ok = false;//tfをずっとださないため
+    /*計測用*/
+    bool                                      find_points = false;
+    bool                                      time = true;//初回限定
+    std::chrono::system_clock::time_point     first_start, start, end; // 型は auto で可
 
   public:
     BoxDetection()
       :nh_()
       ,pnh_("~")
       ,boxDetect_cloud_(new PointCloud()){
+
+      first_start = std::chrono::system_clock::now(); // 計測開始時間
+
      // load rosparam
-     ros::param::get("depth_range_min_x", depth_x_min_);
-     ros::param::get("depth_range_max_x", depth_x_max_);
-     ros::param::get("depth_range_min_z", depth_z_min_);
-     ros::param::get("depth_range_max_z", depth_z_max_);
-     ros::param::get("base_frame_name", base_frame_name_);
+     ros::param::get("/box_detect/depth_range_min_x", depth_x_min_);
+     ros::param::get("/box_detect/depth_range_max_x", depth_x_max_);
+     ros::param::get("/box_detect/depth_range_min_z", depth_z_min_);
+     ros::param::get("/box_detect/depth_range_max_z", depth_z_max_);
+     ros::param::get("/box_detect/cluster_ss", cluster_ss_);
 
      base_frame_name_ = "base_footprint";//default
      points_topic_name_ = "/sensor_data";
+     ros::param::get("/box_detect/base_frame_name", base_frame_name_);
+     ros::param::get("/box_detect/points_topic_name", points_topic_name_);
 
-     ROS_INFO("0");
+
+     ROS_INFO("%s",points_topic_name_.c_str());
      cloud_sub_ = nh_.subscribe(points_topic_name_, 1, &BoxDetection::DetectPointCb, this);
 
      //エラーの時
@@ -106,6 +121,10 @@ class BoxDetection{
       try {
            /* sensor_msgs/PointCloud2データ -> pcl/PointCloudに変換 */
            PointCloud from_msg_cloud;
+           if ((pcl_msg->width * pcl_msg->height) == 0){
+             std::cout << "点群ないよ〜";
+             return;
+           }//うまく点群を取得できなかった
            pcl::fromROSMsg(*pcl_msg, from_msg_cloud);
            pcl_rosmsg_.publish(from_msg_cloud);
            /* 座標フレーム(原点)の変換 -> target_frameを基準にする  */
@@ -152,7 +171,7 @@ class BoxDetection{
       PointCloud::Ptr cloud_vg(new PointCloud());
       pcl::VoxelGrid<PointT> vg;
       vg.setInputCloud (cloud_filtered);
-      vg.setLeafSize (0.01, 0.01, 0.01);
+      vg.setLeafSize (0.03, 0.03, 0.03);
       vg.setDownsampleAllData(true);
       vg.filter (*cloud_vg);
       cloud_vg->header.frame_id = base_frame_name_;
@@ -163,7 +182,7 @@ class BoxDetection{
       box_tree-> setInputCloud(cloud_vg);
       std::vector<pcl::PointIndices> box_cluster_indices;
       pcl::EuclideanClusterExtraction<PointT> ec;
-      ec.setClusterTolerance (0.1); // 10cm
+      ec.setClusterTolerance (cluster_ss_); // 5cm
       ec.setMinClusterSize (100);
       ec.setMaxClusterSize (25000);
       ec.setSearchMethod (box_tree);
@@ -241,6 +260,8 @@ class BoxDetection{
                         cloud_color-> points[*pit].r = 255;
                         cloud_color-> points[*pit].g = 0;
                         cloud_color-> points[*pit].b = 0;
+                        find_points = true;
+                        input_port_ok = true;
                       }
 
                 }//if
@@ -252,6 +273,23 @@ class BoxDetection{
             }//for(pit)
                   count++;
           }//for(it)
+
+          /*時間測定*/
+          if(find_points){
+            end = std::chrono::system_clock::now(); // 計測終了時間
+            if(time){
+              double elapsed_first = std::chrono::duration_cast<std::chrono::milliseconds>(end - first_start).count(); //処理に要した時間をミリ秒に変換
+              //std::cout << "\n初回の時間:\t" << elapsed_first << "秒\n";
+              time = false;
+            }
+            else{
+              double elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count(); //処理に要した時間をミリ秒に変
+              //std::cout << "\n時間:\t" << elapsed << "秒\n";
+            }
+            start = std::chrono::system_clock::now();
+            find_points = false;
+          }
+
 
 
           if(marker_array.markers.empty() == false){
@@ -447,14 +485,12 @@ class BoxDetection{
  	}//box_marker
 
   bool send_tf_frame(){
-    if(box_center_pt_.x() != 0 && entry_gate_center_pt_.y() != 0 && entry_gate_center_pt_.z() != 0 ){
+    if(input_port_ok){
       entry_gate.setOrigin( tf::Vector3(box_min_pt_.x(), entry_gate_center_pt_.y(), entry_gate_center_pt_.z()) );
-      entry_gate.setRotation( tf::Quaternion(0, 0, 0) );
+      entry_gate.setRotation( tf::Quaternion(0, 0, 0, 1) );
       br.sendTransform(tf::StampedTransform(entry_gate, ros::Time(0), base_frame_name_, "input_port" ));//TFの送信
+      input_port_ok = false;
     }//if
-    else{
-      std::cout << "no entry_gate" << std::endl;
-    }
     return true;
   }//send_tf_frame
 
