@@ -58,10 +58,13 @@ class BoxDetection{
 
     std::string                               base_frame_name_;
     std::string                               points_topic_name_;
+    std::string                               camera_link;
+
     /*  Eigen::Vector */
     Eigen::Vector4f                           min_pt_, max_pt_;
     Eigen::Vector4f                           box_min_pt_, box_max_pt_,box_center_pt_;
     Eigen::Vector4f                           entry_gate_min_pt_, entry_gate_max_pt_, entry_gate_center_pt_;
+    Eigen::Vector4f                           input_port_pt_;
 
     double                                    depth_x_max_, depth_x_min_, depth_z_max_, depth_z_min_;
     double                                    cluster_ss_;
@@ -89,6 +92,7 @@ class BoxDetection{
      ros::param::get("/box_detect/cluster_ss", cluster_ss_);
 
      base_frame_name_ = "base_footprint";//default
+     camera_link = "camera_link";
      points_topic_name_ = "/sensor_data";
      ros::param::get("/box_detect/base_frame_name", base_frame_name_);
      ros::param::get("/box_detect/points_topic_name", points_topic_name_);
@@ -279,15 +283,18 @@ class BoxDetection{
             end = std::chrono::system_clock::now(); // 計測終了時間
             if(time){
               double elapsed_first = std::chrono::duration_cast<std::chrono::milliseconds>(end - first_start).count(); //処理に要した時間をミリ秒に変換
-              //std::cout << "\n初回の時間:\t" << elapsed_first << "秒\n";
+              std::cout << "\n初回の時間:\t" << elapsed_first << "ミリ秒\n";
               time = false;
+              detect_precision();
             }
             else{
               double elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count(); //処理に要した時間をミリ秒に変
-              //std::cout << "\n時間:\t" << elapsed << "秒\n";
+              std::cout << "\n時間:\t" << elapsed << "ミリ秒\n";
+              detect_precision();
             }
             start = std::chrono::system_clock::now();
             find_points = false;
+            //detect_precision();
           }
 
 
@@ -311,6 +318,9 @@ class BoxDetection{
       ROS_ERROR("%s", e.what());
       ROS_INFO("in the cluster");
     }
+
+
+
     /* メモリを解放し、引数で与えられたポインタを扱う */
     cloud_transformed_.reset(new PointCloud());
     cloud_cut_x.reset(new PointCloud());
@@ -371,8 +381,8 @@ class BoxDetection{
      		marker.markers[0].ns = points_ns[0];
      		marker.markers[0].id = 1;
      		marker.markers[0].color.a = 1.0;
-     		marker.markers[0].color.r = 1.0;
-     		marker.markers[0].color.g = 0.0;
+     		marker.markers[0].color.r = 0.8;
+     		marker.markers[0].color.g = 0.8;
      		marker.markers[0].color.b = 0.0;
      		marker.markers[0].scale.x = 0.01;//[m]
      		marker.markers[0].scale.y = 0.01;//[m]
@@ -393,7 +403,7 @@ class BoxDetection{
         marker.markers[1].id = 2;
         marker.markers[1].color.a = 1.0;
         marker.markers[1].color.r = 0.0;
-        marker.markers[1].color.g = 1.0;
+        marker.markers[1].color.g = 0.8;
         marker.markers[1].color.b = 0.0;
         marker.markers[1].scale.x = 0.01;//[m]
         marker.markers[1].scale.y = 0.01;//[m]
@@ -414,8 +424,8 @@ class BoxDetection{
         marker.markers[2].id = 3;
         marker.markers[2].color.a = 1.0;
         marker.markers[2].color.r = 0.0;
-        marker.markers[2].color.g = 0.0;
-        marker.markers[2].color.b = 1.0;
+        marker.markers[2].color.g = 0.5;
+        marker.markers[2].color.b = 0.8;
         marker.markers[2].scale.x = 0.01;//[m]
         marker.markers[2].scale.y = 0.01;//[m]
         marker.markers[2].scale.z = 1.0;//[m]
@@ -445,8 +455,8 @@ class BoxDetection{
      		marker.markers[0].id = 4;
      		marker.markers[0].color.a = 1.0;
      		marker.markers[0].color.r = 1.0;
-     		marker.markers[0].color.g = 1.0;
-     		marker.markers[0].color.b = 0.0;
+     		marker.markers[0].color.g = 0.0;
+     		marker.markers[0].color.b = 0.5;
      		marker.markers[0].scale.x = 0.01;//[m]
      		marker.markers[0].scale.y = 0.01;//[m]
      		marker.markers[0].scale.z = 1.0;//[m]
@@ -467,8 +477,8 @@ class BoxDetection{
         marker.markers[1].id = 5;
         marker.markers[1].color.a = 1.0;
         marker.markers[1].color.r = 1.0;
-        marker.markers[1].color.g = 0.0;
-        marker.markers[1].color.b = 1.0;
+        marker.markers[1].color.g = 0.6;
+        marker.markers[1].color.b = 0.0;
         marker.markers[1].scale.x = 0.01;//[m]
         marker.markers[1].scale.y = 0.01;//[m]
         marker.markers[1].scale.z = 1.0;//[m]
@@ -488,11 +498,31 @@ class BoxDetection{
     if(input_port_ok){
       entry_gate.setOrigin( tf::Vector3(box_min_pt_.x(), entry_gate_center_pt_.y(), entry_gate_center_pt_.z()) );
       entry_gate.setRotation( tf::Quaternion(0, 0, 0, 1) );
-      br.sendTransform(tf::StampedTransform(entry_gate, ros::Time(0), base_frame_name_, "input_port" ));//TFの送信
+      br.sendTransform(tf::StampedTransform(entry_gate, ros::Time(0), base_frame_name_, "target" ));//TFの送信
       input_port_ok = false;
     }//if
     return true;
   }//send_tf_frame
+
+  void detect_precision(){
+    //投入可能座標の真値
+    input_port_pt_.x() = 0.951116;
+    input_port_pt_.y() = -0.123235;
+    input_port_pt_.z() = 0.981653;
+    // dis : 真値との距離
+    double dis = sqrt(
+        pow( input_port_pt_.x() - box_min_pt_.x() , 2)
+      + pow( input_port_pt_.y() - entry_gate_center_pt_.y() , 2)
+      + pow( input_port_pt_.z() - entry_gate_center_pt_.z() , 2)
+    );
+    std::cout << "真値との距離:\t"<< std::fixed << std::setprecision(3) << dis  << std::endl;
+
+    if(
+      input_port_pt_.y() - 0.1565 < entry_gate_center_pt_.y() && entry_gate_center_pt_.y() < input_port_pt_.y() + 0.1565 &&
+      input_port_pt_.z() - 0.1495 < entry_gate_center_pt_.z() && entry_gate_center_pt_.z() < input_port_pt_.z() + 0.1495
+    ){std::cout << "投入可能○" << std::endl;}
+    else{std::cout << "投入不可能×" << std::endl;}
+  }//detect_precision
 
 
   // 検出しなかったとき
