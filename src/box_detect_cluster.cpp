@@ -21,6 +21,7 @@
 #include <cmath>
 
 #include <chrono>//時間計測
+#include <box_entry_gate_detection/execute_ctrl.h>
 
 
 typedef pcl::PointXYZ PointT;
@@ -46,6 +47,8 @@ class BoxDetection{
     ros::Publisher                            target_marker_;
     ros::Publisher                            box_marker_;
 
+    ros::ServiceServer                        service_execute_ctrl_;
+
 
     tf::TransformListener                     listener;
     tf::TransformBroadcaster                  br;
@@ -57,7 +60,7 @@ class BoxDetection{
     PointCloud::Ptr                           cloud_mode_;
 
     std::string                               base_frame_name_;
-    std::string                               points_topic_name_;
+    std::string                               sub_point_topic_name;
     std::string                               camera_link;
 
     /*  Eigen::Vector */
@@ -71,6 +74,7 @@ class BoxDetection{
 
 
     bool                                      input_port_ok = false;//tfをずっとださないため
+    bool                                      execute_flag;
     /*計測用*/
     bool                                      find_points = false;
     bool                                      time = true;//初回限定
@@ -90,23 +94,26 @@ class BoxDetection{
      ros::param::get("/box_detect/depth_range_min_z", depth_z_min_);
      ros::param::get("/box_detect/depth_range_max_z", depth_z_max_);
      ros::param::get("/box_detect/cluster_ss", cluster_ss_);
+     ros::param::get("/box_detect/base_frame_name", base_frame_name_);
+     ros::param::get("/box_detect/sub_point_topic_name", sub_point_topic_name);
 
+    /*
      base_frame_name_ = "base_footprint";//default
      camera_link = "camera_link";
-     points_topic_name_ = "/sensor_data";
-     ros::param::get("/box_detect/base_frame_name", base_frame_name_);
-     ros::param::get("/box_detect/points_topic_name", points_topic_name_);
+     sub_point_topic_name = "/sensor_data";
+     */
 
-
-     ROS_INFO("%s",points_topic_name_.c_str());
-     cloud_sub_ = nh_.subscribe(points_topic_name_, 1, &BoxDetection::DetectPointCb, this);
+    // Create a ROS subscriber and publisher
+     ROS_INFO("%s",sub_point_topic_name.c_str());
+     cloud_sub_ = nh_.subscribe(sub_point_topic_name, 1, &BoxDetection::DetectPointCb, this);
+     service_execute_ctrl_ = nh_.advertiseService("execute_ctrl", &BoxDetection::execute_ctrl_server, this);
 
      //エラーの時
-     if(!ros::topic::waitForMessage<sensor_msgs::PointCloud2>(points_topic_name_, ros::Duration(3.0))){
+     if(!ros::topic::waitForMessage<sensor_msgs::PointCloud2>(sub_point_topic_name, ros::Duration(3.0))){
          ROS_ERROR("timeout");
          exit(EXIT_FAILURE);
        }
-    /*Publisher*/
+    //Publisher
      box_pub_             =  nh_.advertise<sensor_msgs::PointCloud2>("/box_detection",1);
      pcl_rosmsg_          =  nh_.advertise<sensor_msgs::PointCloud2>("/pcl_rosMsg",1);
      transform_           =  nh_.advertise<sensor_msgs::PointCloud2>("/transform",1);
@@ -118,6 +125,19 @@ class BoxDetection{
      target_marker_       =  nh_.advertise<visualization_msgs::MarkerArray>("target_point", 1);
      box_marker_          =  nh_.advertise<visualization_msgs::MarkerArray>("box_point", 1);
     }
+
+    bool execute_ctrl_server(box_entry_gate_detection::execute_ctrl::Request&  req,
+                             box_entry_gate_detection::execute_ctrl::Response& res) {
+      this->execute_flag = req.request;
+      if (this->execute_flag == true) {
+        ROS_INFO("Start box_detect.");
+        } 
+      else{
+        ROS_INFO("Stop box_detect.");
+        }
+      res.response = true;
+      return true;
+  }
 
 
   void DetectPointCb(const sensor_msgs::PointCloud2ConstPtr& pcl_msg){
@@ -278,7 +298,8 @@ class BoxDetection{
                   count++;
           }//for(it)
 
-          /*時間測定*/
+          /*
+          //時間測定
           if(find_points){
             end = std::chrono::system_clock::now(); // 計測終了時間
             if(time){
@@ -296,6 +317,7 @@ class BoxDetection{
             find_points = false;
             //detect_precision();
           }
+          */
 
 
 
@@ -321,7 +343,7 @@ class BoxDetection{
 
 
 
-    /* メモリを解放し、引数で与えられたポインタを扱う */
+    // メモリを解放し、引数で与えられたポインタを扱う
     cloud_transformed_.reset(new PointCloud());
     cloud_cut_x.reset(new PointCloud());
     cloud_filtered.reset(new PointCloud());
@@ -331,7 +353,7 @@ class BoxDetection{
 
  }//DetectPointCb
 
-  /* クラスタを直方体で表示するためのMarkerを作成 */
+  // クラスタを直方体で表示するためのMarkerを作成
     visualization_msgs::Marker makeMarker(
     const std::string &frame_id, const std::string &marker_ns,
     const Eigen::Vector4f &min_pt, const Eigen::Vector4f &max_pt,
@@ -504,6 +526,7 @@ class BoxDetection{
     return true;
   }//send_tf_frame
 
+  /*
   void detect_precision(){
     //投入可能座標の真値
     input_port_pt_.x() = 0.951116;
@@ -517,12 +540,15 @@ class BoxDetection{
     );
     std::cout << "真値との距離:\t"<< std::fixed << std::setprecision(3) << dis  << std::endl;
 
-    if(
-      input_port_pt_.y() - 0.1565 < entry_gate_center_pt_.y() && entry_gate_center_pt_.y() < input_port_pt_.y() + 0.1565 &&
-      input_port_pt_.z() - 0.1495 < entry_gate_center_pt_.z() && entry_gate_center_pt_.z() < input_port_pt_.z() + 0.1495
-    ){std::cout << "投入可能○" << std::endl;}
-    else{std::cout << "投入不可能×" << std::endl;}
+    if(input_port_pt_.y() - 0.1565 < entry_gate_center_pt_.y() && entry_gate_center_pt_.y() < input_port_pt_.y() + 0.1565 &&
+       input_port_pt_.z() - 0.1495 < entry_gate_center_pt_.z() && entry_gate_center_pt_.z() < input_port_pt_.z() + 0.1495){
+      std::cout << "投入可能○" << std::endl;
+      }
+    else{
+      std::cout << "投入不可能×" << std::endl;
+      }
   }//detect_precision
+  */
 
 
   // 検出しなかったとき
