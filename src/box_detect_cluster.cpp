@@ -36,7 +36,7 @@ class BoxDetection{
     ros::NodeHandle                           pnh_;                             //param
 
     ros::Subscriber                           cloud_sub_;
-    ros::Publisher                            box_pub_;
+    //ros::Publisher                            box_pub_;
     ros::Publisher                            pcl_rosmsg_;
     ros::Publisher                            transform_;
     ros::Publisher                            filter_pub_;
@@ -97,12 +97,6 @@ class BoxDetection{
      ros::param::get("/box_detect/base_frame_name", base_frame_name_);
      ros::param::get("/box_detect/sub_point_topic_name", sub_point_topic_name);
 
-    /*
-     base_frame_name_ = "base_footprint";//default
-     camera_link = "camera_link";
-     sub_point_topic_name = "/sensor_data";
-     */
-
     // Create a ROS subscriber and publisher
      ROS_INFO("%s",sub_point_topic_name.c_str());
      cloud_sub_ = nh_.subscribe(sub_point_topic_name, 1, &BoxDetection::DetectPointCb, this);
@@ -114,7 +108,7 @@ class BoxDetection{
          exit(EXIT_FAILURE);
        }
     //Publisher
-     box_pub_             =  nh_.advertise<sensor_msgs::PointCloud2>("/box_detection",1);
+     //box_pub_             =  nh_.advertise<sensor_msgs::PointCloud2>("/box_detection",1);
      pcl_rosmsg_          =  nh_.advertise<sensor_msgs::PointCloud2>("/pcl_rosMsg",1);
      transform_           =  nh_.advertise<sensor_msgs::PointCloud2>("/transform",1);
      cut_x_pub_           =  nh_.advertise<sensor_msgs::PointCloud2>("/cut_x_cloud",1);
@@ -297,27 +291,6 @@ class BoxDetection{
             }//for(pit)
                   count++;
           }//for(it)
-
-          /*
-          //時間測定
-          if(find_points){
-            end = std::chrono::system_clock::now(); // 計測終了時間
-            if(time){
-              double elapsed_first = std::chrono::duration_cast<std::chrono::milliseconds>(end - first_start).count(); //処理に要した時間をミリ秒に変換
-              std::cout << "\n初回の時間:\t" << elapsed_first << "ミリ秒\n";
-              time = false;
-              detect_precision();
-            }
-            else{
-              double elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count(); //処理に要した時間をミリ秒に変
-              std::cout << "\n時間:\t" << elapsed << "ミリ秒\n";
-              detect_precision();
-            }
-            start = std::chrono::system_clock::now();
-            find_points = false;
-            //detect_precision();
-          }
-          */
 
 
 
@@ -521,35 +494,10 @@ class BoxDetection{
       entry_gate.setOrigin( tf::Vector3(box_min_pt_.x(), entry_gate_center_pt_.y(), entry_gate_center_pt_.z()) );
       entry_gate.setRotation( tf::Quaternion(0, 0, 0, 1) );
       br.sendTransform(tf::StampedTransform(entry_gate, ros::Time(0), base_frame_name_, "target" ));//TFの送信
-      input_port_ok = false;
+      //input_port_ok = false;
     }//if
     return true;
   }//send_tf_frame
-
-  /*
-  void detect_precision(){
-    //投入可能座標の真値
-    input_port_pt_.x() = 0.951116;
-    input_port_pt_.y() = -0.123235;
-    input_port_pt_.z() = 0.981653;
-    // dis : 真値との距離
-    double dis = sqrt(
-        pow( input_port_pt_.x() - box_min_pt_.x() , 2)
-      + pow( input_port_pt_.y() - entry_gate_center_pt_.y() , 2)
-      + pow( input_port_pt_.z() - entry_gate_center_pt_.z() , 2)
-    );
-    std::cout << "真値との距離:\t"<< std::fixed << std::setprecision(3) << dis  << std::endl;
-
-    if(input_port_pt_.y() - 0.1565 < entry_gate_center_pt_.y() && entry_gate_center_pt_.y() < input_port_pt_.y() + 0.1565 &&
-       input_port_pt_.z() - 0.1495 < entry_gate_center_pt_.z() && entry_gate_center_pt_.z() < input_port_pt_.z() + 0.1495){
-      std::cout << "投入可能○" << std::endl;
-      }
-    else{
-      std::cout << "投入不可能×" << std::endl;
-      }
-  }//detect_precision
-  */
-
 
   // 検出しなかったとき
   void no_detect(std::string msg){
