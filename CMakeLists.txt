@@ -36,15 +36,9 @@ include_directories(
 
 
 
-#add_executable(box_detect src/box_detect.cpp)
-#target_link_libraries(box_detect ${PCL_LIBRARIES} ${catkin_LIBRARIES})
-#add_dependencies(box_detect ${PROJECT_NAME}_generate_messages_cpp)
-
 add_executable(box_detect src/box_detect_cluster.cpp)
 target_link_libraries(box_detect ${PCL_LIBRARIES} ${catkin_LIBRARIES})
 
-add_executable(box_origin src/box_detect_origin.cpp)
-target_link_libraries(box_origin ${PCL_LIBRARIES} ${catkin_LIBRARIES})
 
 add_executable(topic_saver src/topic_saver.cpp)
 target_link_libraries(topic_saver ${PCL_LIBRARIES} ${catkin_LIBRARIES})
