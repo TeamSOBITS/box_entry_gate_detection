@@ -217,7 +217,7 @@ class BoxDetection{
             Eigen::Vector4f cluster_size =  max_pt_ - min_pt_;
             center_pt_ = ((max_pt_ - min_pt_) / 2 ) + min_pt_;
             if(cluster_size.x() > 0 && cluster_size.y() > 0 && cluster_size.z() > 0){
-                //visualization_msgs::Marker marker =  makeMarker(base_frame_name_, "box", min_pt_, max_pt_, 0.0f, 1.0f, 0.0f, 0.5f);
+                visualization_msgs::Marker marker =  makeMarker(base_frame_name_, "box", min_pt_, max_pt_, 0.0f, 1.0f, 0.0f, 0.5f);
                   // 最も近いクラスタを検出
                   if(target_index < 0){
                     //初めに見つけたクラスタは一旦いれとく
