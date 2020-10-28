@@ -80,7 +80,7 @@ class BoxDetection{
       :nh_()
       ,pnh_("~")
       ,boxDetect_cloud_(new PointCloud()){
-
+    this->execute_flag = false;
     input_port_ok = false;;
      // load rosparam
      ros::param::get("/box_entry_gate_detection/depth_range_min_x", depth_x_min_);
@@ -131,7 +131,6 @@ class BoxDetection{
            /* sensor_msgs/PointCloud2データ -> pcl/PointCloudに変換 */
            PointCloud from_msg_cloud;
            if ((pcl_msg->width * pcl_msg->height) == 0){
-             std::cout << "点群ないよ〜";
              return;
            }//うまく点群を取得できなかった
            pcl::fromROSMsg(*pcl_msg, from_msg_cloud);
@@ -145,13 +144,13 @@ class BoxDetection{
                    transform_.publish(*cloud_transformed_);
                }
                catch (tf::TransformException ex){
-                   ROS_ERROR("%s", ex.what());
+                   //ROS_ERROR("%s", ex.what());
                    return;
                }
            }
       }
       catch (std::exception &e){
-        ROS_INFO("tf_transform");
+        //ROS_INFO("tf_transform");
       }
 
       //点群に対しての処理を書く
@@ -164,6 +163,9 @@ class BoxDetection{
       pass_x.filter (*cloud_cut_x);
       cloud_cut_x->header.frame_id = base_frame_name_;
       cut_x_pub_.publish(cloud_cut_x);
+      if (cloud_cut_x->points.size() == 0) {
+        return;
+      }
 
       // filtering Z limit
       PointCloud::Ptr cloud_filtered(new PointCloud());
@@ -174,6 +176,9 @@ class BoxDetection{
       pass_z.filter (*cloud_filtered);
       cloud_filtered->header.frame_id = base_frame_name_;
       filter_pub_.publish(cloud_filtered);
+      if (cloud_filtered->points.size() == 0) {
+      return;
+      }
 
 
       //ダウンサンプリング
@@ -185,6 +190,9 @@ class BoxDetection{
       vg.filter (*cloud_vg);
       cloud_vg->header.frame_id = base_frame_name_;
       voxel_grid_pub_.publish(cloud_vg);
+      if (cloud_vg->points.size() == 0) {
+      return;
+      }
 
       //ROS_INFO("2");
       //クラスタリング
@@ -198,6 +206,7 @@ class BoxDetection{
       ec.setSearchMethod (box_tree);
       ec.setInputCloud(cloud_vg);
       ec.extract (box_cluster_indices);
+      
 
       //可視化
       visualization_msgs::MarkerArray marker_array;
@@ -297,8 +306,8 @@ class BoxDetection{
 
     }//try
     catch (std::exception &e){
-      ROS_ERROR("%s", e.what());
-      ROS_INFO("in the cluster");
+      //ROS_ERROR("%s", e.what());
+      //ROS_INFO("in the cluster");
     }
 
     // メモリを解放し、引数で与えられたポインタを扱う
