@@ -13,7 +13,7 @@
 		<param name="depth_range_min_x" type="double" value="0.1"/>
 		<param name="depth_range_max_x" type="double" value="1.2"/>
 		<param name="depth_range_min_z" type="double" value="0.1"/>
-		<param name="depth_range_max_z" type="double" value="1.2"/><!--1.6-->
+		<param name="depth_range_max_z" type="double" value="1.2"/>
 		<param name="cluster_ss" type="double" value="0.05"/>
 
 		<node name="box_detection_node" pkg="box_entry_gate_detection" type="box_detect"  output="screen"/>

@@ -1,13 +1,13 @@
-/* PCDファイルからのポイントクラウドデータの読み取り、sensor_msgs::PointCloud2型変数に変換してパブリッシュする */
+/* Reading point cloud data from a PCD file, converting it into the sensor_msgs::PointCloud2 type, and publishing */
 
-/* ROSの基本ヘッダ */
+/* ROS Basic Header */
 #include <ros/ros.h>
-/* 入出力関連ヘッダ */
+/* Input/Output Related Header */
 #include <iostream>
 /* Point Cloud Library */
-#include <pcl_ros/point_cloud.h>            //pcl::PointCloud<T>をROSメッセージとしてPublishおよびSubscribeできる
-#include <pcl/point_types.h>                //PCLで実装されたすべてのPointTポイントタイプ構造体を定義する
-#include <pcl_ros/transforms.h>                   //ポイントクライドを任意の座標フレームに変換する
+#include <pcl_ros/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl_ros/transforms.h>
 #include <pcl/io/io.h>
 #include <pcl/io/pcd_io.h>
 /* sensor_msgs */
@@ -16,86 +16,85 @@
 
 
 
-typedef pcl::PointXYZ PointT; //pcl::PointXYZ → PointT　点群データ構造体
-typedef pcl::PointCloud<PointT> PointCloud; //スマートポインタ　pcl::PointCloud<pcl::PointXYZ> → PointCloud　
+typedef pcl::PointXYZ PointT; // Convert pcl::PointXYZ to PointT (point cloud data structure)
+typedef pcl::PointCloud<PointT> PointCloud; // Smart pointer pcl::PointCloud<pcl::PointXYZ> → PointCloud
 
 class PointcloudPublisherNode
 {
   private:
-    ros::NodeHandle nh_;                                 //pub/sub
-    ros::NodeHandle pnh_;                                //parameter
+    ros::NodeHandle nh_;
+    ros::NodeHandle pnh_;
     /* Publisher */
-    ros::Publisher pub_cloud_sensor_;                          //点群のパブリッシャー
-    ros::Publisher pub_cloud_;                          //点群のパブリッシャー
+    ros::Publisher pub_cloud_sensor_;       // Point cloud publisher
+    ros::Publisher pub_cloud_;              // Point cloud publisher
     /* param */
-    std::string data_path_;           //pcdファイルのパス
+    std::string data_path_;                 // Path to the PCD file
 
 
-  /* PointCloudの回転(必要になったら) */
+  // Rotation of the PointCloud (if needed)
   void rotation(){
-    PointCloud::Ptr cloud (new PointCloud());     //点群データを格納するためのPointCloud型変数（ポインター）
-    PointCloud::Ptr cloud_transformed (new PointCloud());     //点群データを格納するためのPointCloud型変数（ポインター）
+    PointCloud::Ptr cloud (new PointCloud());                 // Point Cloud variable (pointer) for storing point cloud data
+    PointCloud::Ptr cloud_transformed (new PointCloud());     // Point Cloud variable (pointer) for storing point cloud data
 
-    /* x軸を中心にtheta回転させるコード */
+    /* Rotation about the x-axis by theta */
     Eigen::Matrix4f rotation_matrix_x;
     float cos_theta = 0.0;
     float sin_theta = 1.0;
-    //行列を作成する 4x4
+    // Create a 4x4 matrix
     rotation_matrix_x << \
       1,         0,           0, 0, \
       0, cos_theta, - sin_theta, 0, \
       0, sin_theta,   cos_theta, 0, \
       0,          0,           0, 1;
+    //Rotation
+    pcl::transformPointCloud(*cloud, *cloud_transformed, rotation_matrix_x );
+    cloud = cloud_transformed;
 
-    //回転
-    //pcl::transformPointCloud(*cloud, *cloud_transformed, rotation_matrix_x );
-    //cloud = cloud_transformed;
 
-
-    /* y軸を中心にtheta回転させるコード */
+    /* Rotation about the y-axis by theta */
     Eigen::Matrix4f rotation_matrix_y;
     cos_theta = 0.0;
     sin_theta = -1.0;
-    //行列を作成する 4x4
+    // Create a 4x4 matrix
       rotation_matrix_y << \
         cos_theta,  0,    sin_theta, 0, \
                 0,  1,            0, 0, \
       -sin_theta,  0,    cos_theta, 0, \
                 0,  0,            0, 1;
-    //回転
-    pcl::transformPointCloud(*cloud, *cloud_transformed, rotation_matrix_y );
-    cloud = cloud_transformed;
+    //Rotation
+    // pcl::transformPointCloud(*cloud, *cloud_transformed, rotation_matrix_y );
+    // cloud = cloud_transformed;
 
-    /* z軸を中心にtheta回転させるコード */
+    /* Rotation about the z-axis by theta */
     Eigen::Matrix4f rotation_matrix_z;
     cos_theta = 0.0;
     sin_theta = -1.0;
-    //行列を作成する 4x4
+    // Create a 4x4 matrix
     rotation_matrix_z << \
       cos_theta,  - sin_theta,   0, 0, \
       sin_theta,    cos_theta,   0, 0, \
               0,            0,   1, 0, \
               0,            0,   0, 1;
 
-    //回転
-    //pcl::transformPointCloud(*cloud, *cloud_transformed, rotation_matrix_z );
-    //cloud = cloud_transformed;
+    //Rotation
+    // pcl::transformPointCloud(*cloud, *cloud_transformed, rotation_matrix_z );
+    // cloud = cloud_transformed;
     return;
   }
 
 
-  /* メイン関数 */
+  /* Main Function */
   int main(void){
-    PointCloud::Ptr cloud (new PointCloud());     //点群データを格納するためのPointCloud型変数（ポインター）
-    PointCloud::Ptr cloud_transformed (new PointCloud());     //点群データを格納するためのPointCloud型変数（ポインター）
+    PointCloud::Ptr cloud (new PointCloud());                 // Point Cloud variable (pointer) for storing point cloud data
+    PointCloud::Ptr cloud_transformed (new PointCloud());     // Point Cloud variable (pointer) for storing point cloud data
 
-    /* 作成したPointCloudを読み込む */
+    /* Load the created PointCloud */
     if (pcl::io::loadPCDFile<pcl::PointXYZ> (this->data_path_, *cloud) == -1){
       PCL_ERROR ("Couldn't read file test_pcd.pcd \n");
       return (-1);
     }
 
-    /* 読み込まれたポイントクラウドデータの中身を出力 */
+    /* Output the contents of the loaded point cloud data */
     std::cout << "===========================================================\n" << std::endl;
     std::cout << "Loaded\n"
               << cloud->width * cloud->height
@@ -113,15 +112,15 @@ class PointcloudPublisherNode
     std::cout << "===========================================================\n" << std::endl;
 
     /* sensor_msgs */
-    sensor_msgs::PointCloud2 sensor_cloud;  //点群データを格納するためのsensor_msgs::PointCloud2型変数
+    sensor_msgs::PointCloud2 sensor_cloud;  // Variable of type sensor_msgs::PointCloud2 for storing point cloud data
 
-    /* PointCloud型変数をsensor_msgs::PointCloud2型変数に変換 */
+    // Convert the PointCloud variable to a sensor_msgs::PointCloud2 variable
     pcl::toROSMsg(*cloud, sensor_cloud);
 
     cloud->header.frame_id = "camera_rgb_optical_frame";
     sensor_cloud.header.frame_id = "camera_rgb_optical_frame";
 
-    /* sensor_cloudをパブリッシュ */
+    /* Publish the sensor_cloud */
     ros::Rate loop_rate(3);
     while (ros::ok()){
       this->pub_cloud_.publish(cloud);
@@ -141,7 +140,7 @@ class PointcloudPublisherNode
       std::cout << "data_path = "  << this->data_path_ << std::endl;
       std::cout << "====================\n" << std::endl;
 
-      /* 点群データのパブリッッシャーの定義 */
+      // Definition of the Point Cloud Data Publisher
       this->pub_cloud_sensor_ = nh_.advertise<sensor_msgs::PointCloud2>("/sensor_data", 1);
       this->pub_cloud_ = nh_.advertise<PointCloud>("/PointCloud", 1);
       main();
@@ -149,9 +148,9 @@ class PointcloudPublisherNode
 };
 
 int main(int argc, char *argv[]){
-  //ノードの初期化
+  // Initialization of the node
   ros::init(argc, argv, "pointcloud_publisher_node");
-  //PointcloudPublisherNodeのインスタンスを作成
+  // Creating an instance of PointcloudPublisherNode
   PointcloudPublisherNode pointcloud_publisher;
   ros::spin();
 }

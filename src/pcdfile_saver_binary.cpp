@@ -1,4 +1,3 @@
-/* ROSの基本ヘッダ */
 #include <ros/ros.h>
 #include <iostream>
 #include <pcl/io/io.h>
@@ -18,8 +17,6 @@ int main(int argc, char** argv){
 
 
   nh.getParam("pcdfile", pcdfile);
-  //std::cout << "pcdファイルを入力してください" << std::endl;
-  //std::cin >> pcdfile;
   load_file << "/home/rg-25/catkin_ws/src/box_entry_gate_detection/pcd/ascii/" << pcdfile;
   pcl::io::loadPCDFile(load_file.str(), cloud);
 

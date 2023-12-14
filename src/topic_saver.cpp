@@ -21,8 +21,6 @@
 
 #include <string>
 
-//#include <typeinfo.h>
-
 
 class pcl_topic_saver
 {
@@ -35,7 +33,7 @@ public:
 
     void point_cb(const sensor_msgs::PointCloud2ConstPtr& input){
 		//ROS_INFO_STREAM("point_cloud get.");
-        if( input->header.stamp + ros::Duration(1.0) < ros::Time::now() ){ ROS_INFO_STREAM("ponit_cloud skip"); return; }//古いトピックは使わない
+        if( input->header.stamp + ros::Duration(1.0) < ros::Time::now() ){ ROS_INFO_STREAM("ponit_cloud skip"); return; }// Evaluate if the received point cloud message is outdated (older than 1 second)
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_input(new pcl::PointCloud<pcl::PointXYZ>);
         pcl::fromROSMsg(*input, *cloud_input);
         pcl::io::savePCDFileASCII ("saved_PointCloud_" + std::to_string(this->proc_count) + ".pcd", *cloud_input);

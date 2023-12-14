@@ -18,11 +18,10 @@
 #include <pcl/ModelCoefficients.h>
 /* rviz */
 #include <visualization_msgs/MarkerArray.h>
-/*平方根*/
-#include <cmath>
 
-#include <chrono>//時間計測
-#include <box_entry_gate_detection/execute_ctrl.h>
+#include <cmath>
+#include <chrono>//Time measurement
+#include "box_entry_gate_detection/execute_ctrl.h"
 
 
 typedef pcl::PointXYZ PointT;
@@ -33,11 +32,10 @@ class BoxDetection{
   private:
 
     /* Node Handle */
-    ros::NodeHandle                           nh_;                              //pub/sub
-    ros::NodeHandle                           pnh_;                             //param
+    ros::NodeHandle                           nh_;
+    ros::NodeHandle                           pnh_;
 
     ros::Subscriber                           cloud_sub_;
-    //ros::Publisher                            box_pub_;
     ros::Publisher                            pcl_rosmsg_;
     ros::Publisher                            transform_;
     ros::Publisher                            filter_pub_;
@@ -72,7 +70,7 @@ class BoxDetection{
     double                                    cluster_ss_;
 
 
-    bool                                      input_port_ok = false;//tfをずっとださないため
+    bool                                      input_port_ok = false;//To avoid continuously publishing tf
     bool                                      execute_flag;
 
   public:
@@ -126,25 +124,25 @@ class BoxDetection{
 
 
   void DetectPointCb(const sensor_msgs::PointCloud2ConstPtr& pcl_msg){
-      PointCloud::Ptr cloud_transformed_(new PointCloud());//初期化
+      PointCloud::Ptr cloud_transformed_(new PointCloud());//Initialization
       try {
-           /* sensor_msgs/PointCloud2データ -> pcl/PointCloudに変換 */
+           /* Change sensor_msgs/PointCloud2 to pcl/PointCloud */
            PointCloud from_msg_cloud;
            if ((pcl_msg->width * pcl_msg->height) == 0){
              return;
-           }//うまく点群を取得できなかった
+           }//Unable to retrieve point cloud data successfully
            pcl::fromROSMsg(*pcl_msg, from_msg_cloud);
            pcl_rosmsg_.publish(from_msg_cloud);
-           /* 座標フレーム(原点)の変換 -> target_frameを基準にする  */
-           if (base_frame_name_.empty() == false) {//フレームの有無
+           /* Coordinate frame transformation -> Using target_frame as the reference */
+           if (base_frame_name_.empty() == false) {//Presence/Absence of the Frame
                try {
                    listener.waitForTransform(base_frame_name_, from_msg_cloud.header.frame_id, ros::Time(0), ros::Duration(1.0));
                    pcl_ros::transformPointCloud(base_frame_name_, ros::Time(0), from_msg_cloud, from_msg_cloud.header.frame_id,  *cloud_transformed_, listener);
-                   cloud_transformed_->header.frame_id = base_frame_name_; //pubするときにfame_nameが消えるから、直接入力しなｋればならない
+                   cloud_transformed_->header.frame_id = base_frame_name_; //Since frame_name disappears when publishing, it needs to be entered directly.
                    transform_.publish(*cloud_transformed_);
                }
                catch (tf::TransformException ex){
-                   //ROS_ERROR("%s", ex.what());
+                   //ROS_ERROR("%s", ex.what());?
                    return;
                }
            }
@@ -153,8 +151,8 @@ class BoxDetection{
         //ROS_INFO("tf_transform");
       }
 
-      //点群に対しての処理を書く
-      // filtering X limit
+      //Processing for point clouds
+      //Adjust X-axis range
       PointCloud::Ptr cloud_cut_x(new PointCloud);
       pcl::PassThrough<PointT> pass_x;
       pass_x.setInputCloud (cloud_transformed_);
@@ -167,7 +165,7 @@ class BoxDetection{
         return;
       }
 
-      // filtering Z limit
+      //Adjust Z-axis range
       PointCloud::Ptr cloud_filtered(new PointCloud());
       pcl::PassThrough<PointT> pass_z;
       pass_z.setInputCloud (cloud_cut_x);
@@ -181,7 +179,7 @@ class BoxDetection{
       }
 
 
-      //ダウンサンプリング
+      //Downsampling
       PointCloud::Ptr cloud_vg(new PointCloud());
       pcl::VoxelGrid<PointT> vg;
       vg.setInputCloud (cloud_filtered);
@@ -194,8 +192,7 @@ class BoxDetection{
       return;
       }
 
-      //ROS_INFO("2");
-      //クラスタリング
+      //Clustering
       pcl::search::KdTree<PointT>::Ptr box_tree(new pcl::search::KdTree<PointT>);
       box_tree-> setInputCloud(cloud_vg);
       std::vector<pcl::PointIndices> box_cluster_indices;
@@ -208,15 +205,15 @@ class BoxDetection{
       ec.extract (box_cluster_indices);
       
 
-      //可視化
+      //Visualization
       visualization_msgs::MarkerArray marker_array;
       int target_index = -1;
 
-      //点群に色をつける
+      //Add color to point clouds
       pcl::PointCloud <pcl::PointXYZRGB>::Ptr cloud_color(new pcl::PointCloud <pcl::PointXYZRGB>());
       pcl::copyPointCloud(*cloud_vg, *cloud_color);
 
-      //クラスタを可視化
+      //Visualize clusters
       try{
           for(std::vector<pcl::PointIndices>::const_iterator it = box_cluster_indices.begin(),
                                                          it_end = box_cluster_indices.end();
@@ -227,18 +224,17 @@ class BoxDetection{
             center_pt_ = ((max_pt_ - min_pt_) / 2 ) + min_pt_;
             if(cluster_size.x() > 0 && cluster_size.y() > 0 && cluster_size.z() > 0){
                 visualization_msgs::Marker marker =  makeMarker(base_frame_name_, "box", min_pt_, max_pt_, 0.0f, 1.0f, 0.0f, 0.5f);
-                  // 最も近いクラスタを検出
+                  // Detect the nearest cluster
                   if(target_index < 0){
-                    //初めに見つけたクラスタは一旦いれとく
                     target_index = marker_array.markers.size();
                     box_max_pt_ = max_pt_;
                     box_min_pt_ = min_pt_;
                     box_center_pt_ = ((max_pt_ - min_pt_) / 2 ) + min_pt_;
                   }
                   else{
-                    // d1 : target_indexのクラスタまでの距離
+                    // d1 : Distance to the cluster with the target index
                     float d1 = sqrt(pow( marker_array.markers[target_index].pose.position.x , 2) + pow( marker_array.markers[target_index].pose.position.y , 2));
-                    // ｄ2 : 新たに検出された特定のサイズに合致するクラスタまでの距離
+                    // d2 : Distance to the cluster that matches the newly detected specific size
                     float d2 = sqrt(pow( marker.pose.position.x , 2) + pow( marker.pose.position.y , 2));
                     if(d2 < d1){
                       target_index = marker_array.markers.size();
@@ -258,7 +254,7 @@ class BoxDetection{
         catch (std::exception &e){
         }
 
-        //最も近いクラスタ内の点群だけ使用
+        //Use only the point cloud within the closest cluster
         try{
           int count = 0;
           for(std::vector<pcl::PointIndices>::const_iterator it = box_cluster_indices.begin(),
@@ -310,7 +306,7 @@ class BoxDetection{
       //ROS_INFO("in the cluster");
     }
 
-    // メモリを解放し、引数で与えられたポインタを扱う
+    //Free up memory and handle the pointer given as an argument
     cloud_transformed_.reset(new PointCloud());
     cloud_cut_x.reset(new PointCloud());
     cloud_filtered.reset(new PointCloud());
@@ -321,7 +317,7 @@ class BoxDetection{
  }//DetectPointCb
 
 
-  // クラスタを直方体で表示するためのMarkerを作成
+  // Create a Marker for displaying the cluster as a cuboid
     visualization_msgs::Marker makeMarker(
     const std::string &frame_id, const std::string &marker_ns,
     const Eigen::Vector4f &min_pt, const Eigen::Vector4f &max_pt,const
@@ -436,7 +432,7 @@ class BoxDetection{
     if(input_port_ok){
       entry_gate.setOrigin( tf::Vector3(box_center_pt_.x(), box_center_pt_.y(), box_center_pt_.z()+0.2) );
       entry_gate.setRotation( tf::Quaternion(0, 0, 0, 1) );
-      br.sendTransform(tf::StampedTransform(entry_gate, ros::Time::now(), base_frame_name_, "placeable_point" ));//TFの送信
+      br.sendTransform(tf::StampedTransform(entry_gate, ros::Time::now(), base_frame_name_, "placeable_point" ));//Broadcast the TF for the cluster
     }//if
     else{
       //std::cout << "tf stopping" << std::endl;
@@ -444,7 +440,7 @@ class BoxDetection{
     return true;
   }//send_tf_frame
 
-  // 検出しなかったとき
+  //When no detection occurs
   void no_detect(std::string msg){
    ROS_ERROR("No detect target");
    std::cout << "Reason:\t" << msg << std::endl;
@@ -452,10 +448,10 @@ class BoxDetection{
 };//class BoxDetection
 
 int main(int argc, char *argv[]){
-  /* ノードの初期化 */
+  /* Initialization of the node */
   ros::init(argc, argv, "box_detection_node");
   ROS_INFO("Start box_detection.");
-  /* BoxDetection のインスタンスを作成 */
+  /* Creating an instance of the BoxDetection */
   BoxDetection box_detection_node;
   while (ros::ok()){
     box_detection_node.send_tf_frame();

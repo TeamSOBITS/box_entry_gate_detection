@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.10.2)
 project(box_entry_gate_detection)
   add_compile_options(-std=c++14)
 
@@ -12,7 +12,6 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   message_generation
   tf
-
 )
 
 add_service_files(
@@ -35,10 +34,8 @@ include_directories(
 )
 
 
-
 add_executable(box_detect src/box_detect_cluster.cpp)
 target_link_libraries(box_detect ${PCL_LIBRARIES} ${catkin_LIBRARIES})
-
 
 add_executable(topic_saver src/topic_saver.cpp)
 target_link_libraries(topic_saver ${PCL_LIBRARIES} ${catkin_LIBRARIES})
