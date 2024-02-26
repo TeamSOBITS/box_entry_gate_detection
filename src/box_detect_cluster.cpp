@@ -1,9 +1,11 @@
 #include <ros/ros.h>
 #include <iostream>
 #include <stdio.h>
-/* tf */
-#include <tf/transform_broadcaster.h>
-#include <tf/transform_listener.h>
+/* tf2 */
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_ros/transform_broadcaster.h>
 /* Point Cloud Library */
 #include <pcl_ros/point_cloud.h>
 #include <pcl_ros/transforms.h>
@@ -48,10 +50,10 @@ class BoxDetection{
 
     ros::ServiceServer                        service_execute_ctrl_;
 
-
-    tf::TransformListener                     listener;
-    tf::TransformBroadcaster                  br;
-    tf::Transform                             entry_gate;
+    tf2_ros::Buffer                           buffer;
+    tf2_ros::TransformListener                tflistener;
+    tf2_ros::TransformBroadcaster             br;
+    geometry_msgs::TransformStamped           entry_gate;
 
 
     PointCloud::Ptr                           cloud_transformed_;
@@ -75,9 +77,14 @@ class BoxDetection{
 
   public:
     BoxDetection()
-      :nh_()
-      ,pnh_("~")
-      ,boxDetect_cloud_(new PointCloud()){
+      : nh_()
+      , pnh_("~")
+      , buffer()
+      , tflistener(buffer)
+      , br()
+      , entry_gate()
+      , cloud_transformed_(new PointCloud())
+      , boxDetect_cloud_(new PointCloud()){
     this->execute_flag = false;
     input_port_ok = false;;
      // load rosparam
@@ -124,6 +131,7 @@ class BoxDetection{
 
 
   void DetectPointCb(const sensor_msgs::PointCloud2ConstPtr& pcl_msg){
+      geometry_msgs::TransformStamped tfGeom;
       PointCloud::Ptr cloud_transformed_(new PointCloud());//Initialization
       try {
            /* Change sensor_msgs/PointCloud2 to pcl/PointCloud */
@@ -136,15 +144,17 @@ class BoxDetection{
            /* Coordinate frame transformation -> Using target_frame as the reference */
            if (base_frame_name_.empty() == false) {//Presence/Absence of the Frame
                try {
-                   listener.waitForTransform(base_frame_name_, from_msg_cloud.header.frame_id, ros::Time(0), ros::Duration(1.0));
-                   pcl_ros::transformPointCloud(base_frame_name_, ros::Time(0), from_msg_cloud, from_msg_cloud.header.frame_id,  *cloud_transformed_, listener);
+                   tfGeom = buffer.lookupTransform(base_frame_name_, from_msg_cloud.header.frame_id, ros::Time(0), ros::Duration(1.0));
+                   pcl_ros::transformPointCloud(base_frame_name_, ros::Time(0), from_msg_cloud, from_msg_cloud.header.frame_id,  *cloud_transformed_, buffer);
                    cloud_transformed_->header.frame_id = base_frame_name_; //Since frame_name disappears when publishing, it needs to be entered directly.
                    transform_.publish(*cloud_transformed_);
                }
-               catch (tf::TransformException ex){
-                   //ROS_ERROR("%s", ex.what());?
+               catch (tf2::TransformException ex){
+                   ROS_ERROR("%s", ex.what());
                    return;
                }
+               tf2::Stamped<tf2::Transform> tf2;
+               tf2::convert(tfGeom, tf2);
            }
       }
       catch (std::exception &e){
@@ -430,12 +440,20 @@ class BoxDetection{
 
   bool send_tf_frame(){
     if(input_port_ok){
-      entry_gate.setOrigin( tf::Vector3(box_center_pt_.x(), box_center_pt_.y(), box_center_pt_.z()+0.2) );
-      entry_gate.setRotation( tf::Quaternion(0, 0, 0, 1) );
-      br.sendTransform(tf::StampedTransform(entry_gate, ros::Time::now(), base_frame_name_, "placeable_point" ));//Broadcast the TF for the cluster
-    }//if
-    else{
-      //std::cout << "tf stopping" << std::endl;
+        geometry_msgs::TransformStamped entry_gate_tf;
+        entry_gate_tf.transform.translation.x = box_center_pt_.x();
+        entry_gate_tf.transform.translation.y = box_center_pt_.y();
+        entry_gate_tf.transform.translation.z = box_center_pt_.z() + 0.2;
+        entry_gate_tf.transform.rotation.x = 0;
+        entry_gate_tf.transform.rotation.y = 0;
+        entry_gate_tf.transform.rotation.z = 0;
+        entry_gate_tf.transform.rotation.w = 1;
+        entry_gate_tf.header.stamp = ros::Time::now();
+        entry_gate_tf.header.frame_id = base_frame_name_;
+        entry_gate_tf.child_frame_id = "placeable_point";
+        br.sendTransform(entry_gate_tf); // Broadcast the TF for the cluster
+    } else {
+        //std::cout << "tf stopping" << std::endl;
     }
     return true;
   }//send_tf_frame
