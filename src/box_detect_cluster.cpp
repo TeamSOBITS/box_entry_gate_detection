@@ -23,8 +23,7 @@
 
 #include <cmath>
 #include <chrono>//Time measurement
-#include "box_entry_gate_detection/execute_ctrl.h"
-
+#include "sobits_msgs/RunCtrl.h"
 
 typedef pcl::PointXYZ PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
@@ -48,7 +47,7 @@ class BoxDetection{
     ros::Publisher                            target_marker_;
     ros::Publisher                            box_marker_;
 
-    ros::ServiceServer                        service_execute_ctrl_;
+    ros::ServiceServer                        run_ctrl_server_;
 
     tf2_ros::Buffer                           buffer;
     tf2_ros::TransformListener                tflistener;
@@ -101,7 +100,7 @@ class BoxDetection{
     // Create a ROS subscriber and publisher
      ROS_INFO("%s",sub_point_topic_name.c_str());
      cloud_sub_ = nh_.subscribe(sub_point_topic_name, 1, &BoxDetection::DetectPointCb, this);
-     service_execute_ctrl_ = nh_.advertiseService("execute_ctrl", &BoxDetection::execute_ctrl_server, this);
+     run_ctrl_server_ = nh_.advertiseService("RunCtrl", &BoxDetection::run_ctrl_server, this);
     //Publisher
      pcl_rosmsg_          =  nh_.advertise<sensor_msgs::PointCloud2>("/pcl_rosMsg",1);
      transform_           =  nh_.advertise<sensor_msgs::PointCloud2>("/transform",1);
@@ -114,8 +113,8 @@ class BoxDetection{
      box_marker_          =  nh_.advertise<visualization_msgs::MarkerArray>("box_point", 1);
     }
 
-    bool execute_ctrl_server(box_entry_gate_detection::execute_ctrl::Request&  req,
-                             box_entry_gate_detection::execute_ctrl::Response& res) {
+    bool run_ctrl_server( sobits_msgs::RunCtrl::Request&  req,
+                          sobits_msgs::RunCtrl::Response& res) {
       this->execute_flag = req.request;
       if (this->execute_flag == true) {
         ROS_INFO("Start Box_Detect.");
