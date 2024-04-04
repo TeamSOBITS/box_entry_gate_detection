@@ -17,11 +17,6 @@ find_package(catkin REQUIRED COMPONENTS
   sobits_msgs
 )
 
-# add_service_files(
-#    FILES
-#    Service1.srv
-#  )
-
 generate_messages(
   DEPENDENCIES
   std_msgs
