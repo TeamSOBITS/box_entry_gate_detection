@@ -58,11 +58,11 @@
    # もしくは，"cd ~/catkin_ws/"へ移動．
    $ cd src/
    ```
-2. 本レポジトリをcloneします．
+2. 本リポジトリをcloneします．
    ```sh
    $ git clone https://github.com/TeamSOBITS/box_entry_gate_detection
    ```
-3. レポジトリの中へ移動します．
+3. リポジトリの中へ移動します．
    ```sh
    $ cd box_entry_gate_detection/
    ```

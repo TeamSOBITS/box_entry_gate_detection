@@ -4,37 +4,88 @@
 
 # box_entry_gate_detection
 
+<!-- TABLE OF CONTENTS -->
+<details>
+  <summary>Table of Contents</summary>
+  <ol>
+    <li>
+      <a href="#introduction">Introduction</a>
+    </li>
+    <li>
+      <a href="#getting-started">Getting Started</a>
+      <ul>
+        <li><a href="#prerequisites">Prerequisites</a></li>
+        <li><a href="#installation">Installation</a></li>
+      </ul>
+    </li>
+    <li><a href="#launch-and-usage">Launch and Usage</a></li>
+    <!-- <li><a href="#contributing">Contributing</a></li> -->
+    <!-- <li><a href="#license">License</a></li> -->
+  </ol>
+</details>
+
 ## Introduction
 This package is utilized to detect the entry gate of a garbage box. By using an RGB-D camera, it captures 3D point cloud data, processes the point cloud information, and identifies the entry gate of the garbage box. This is particularly useful in tasks involving the disposal of objects into the garbage box.
 
-## Environments
-- OS : Ubuntu 20.04
-- ROS distribution : Noetic Ninjemys
-- PCL
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## Installation
+## Getting Started
 
-### PCL Package
-```bash
-# Update system
-$ sudo apt-get update
-# Install libpcl-dev package
-$ sudo apt-get install libpcl-dev
-```
-### Installation Steps
-```bash
-# Move to catkin_ws/src
-$ cd ~/catkin_ws/src
-# Clone this package
-$ git clone https://github.com/TeamSOBITS/box_entry_gate_detection.git
-# Build the package
-$ cd ~/catkin_ws && catkin_make
-```
+This section describes how to set up this repository.
 
-## How to use
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+### Prerequisites
+
+First, please set up the following environment before proceeding to the next installation stage.
+
+| System  | Version |
+| ------------- | ------------- |
+| Ubuntu | 20.04 (Focal Fossa) |
+| ROS | Noetic Ninjemys |
+| Python | 3.8 |
+
+> [!NOTE]
+> If you need to install `Ubuntu` or `ROS`, please check our [SOBITS Manual](https://github.com/TeamSOBITS/sobits_manual#%E9%96%8B%E7%99%BA%E7%92%B0%E5%A2%83%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6).
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+### Installation
+
+1. Go to the `src` folder of ROS.
+   ```sh
+   $ roscd
+   # Or just use "cd ~/catkin_ws/" and change directory.
+   $ cd src/
+   ```
+2. Clone this repository.
+   ```sh
+   $ git clone https://github.com/TeamSOBITS/box_entry_gate_detection
+   ```
+3. Navigate into the repository.
+   ```sh
+   $ cd box_entry_gate_detection/
+   ```
+4. Install the dependent packages.
+   ```sh
+   $ bash install.sh
+   ```
+5. Compile the package.
+   ```sh
+   $ roscd
+   # Or just use "cd ~/catkin_ws/" and change directory.
+   $ catkin_make
+   ```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Launch and Usage
 ```
 $ roslaunch box_entry_gate_detection box_detection.launch
 ```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Package Information
 ### Publications:
@@ -54,13 +105,12 @@ $ roslaunch box_entry_gate_detection box_detection.launch
  * /tf [tf2_msgs/TFMessage]
  * /tf_static [tf2_msgs/TFMessage]
 
-## Caution
-- Modify the value of sub_point_topic_name in the launch file according to the RGB-D camera you are using.
+
+> [!WARNING]
+> Modify the value of sub_point_topic_name in the launch file according to the RGB-D camera you are using.
 ```bash
 <param name="sub_point_topic_name" type="str" value="/hsrb/head_rgbd_sensor/depth/points"/>
 ```
 
-## License
-- The source code of this website is licensed under the BSD License, and the details can be found in the [LICENSE](https://github.com/TeamSOBITS/box_entry_gate_detection/blob/noetic-devel/LICENSE) file.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
