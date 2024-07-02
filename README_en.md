@@ -2,6 +2,12 @@
 
 [JP](README.md) | [EN](README_en.md)
 
+[![Contributors][contributors-shield]][contributors-url]
+[![Forks][forks-shield]][forks-url]
+[![Stargazers][stars-shield]][stars-url]
+[![Issues][issues-shield]][issues-url]
+<!-- [![MIT License][license-shield]][license-url] -->
+
 # box_entry_gate_detection
 
 <!-- TABLE OF CONTENTS -->
@@ -112,5 +118,17 @@ $ roslaunch box_entry_gate_detection box_detection.launch
 <param name="sub_point_topic_name" type="str" value="/hsrb/head_rgbd_sensor/depth/points"/>
 ```
 
+<!-- MARKDOWN LINKS & IMAGES -->
+<!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
+[contributors-shield]: https://img.shields.io/github/contributors/TeamSOBITS/box_entry_gate_detection.svg?style=for-the-badge
+[contributors-url]: https://github.com/TeamSOBITS/box_entry_gate_detection/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/TeamSOBITS/box_entry_gate_detection.svg?style=for-the-badge
+[forks-url]: https://github.com/TeamSOBITS/box_entry_gate_detection/network/members
+[stars-shield]: https://img.shields.io/github/stars/TeamSOBITS/box_entry_gate_detection.svg?style=for-the-badge
+[stars-url]: https://github.com/TeamSOBITS/box_entry_gate_detection/stargazers
+[issues-shield]: https://img.shields.io/github/issues/TeamSOBITS/box_entry_gate_detection.svg?style=for-the-badge
+[issues-url]: https://github.com/TeamSOBITS/box_entry_gate_detection/issues
+[license-shield]: https://img.shields.io/github/license/TeamSOBITS/box_entry_gate_detection.svg?style=for-the-badge
+[license-url]: LICENSE
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
