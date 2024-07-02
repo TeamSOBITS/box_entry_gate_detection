@@ -5,6 +5,11 @@
   <description>The box_entry_gate_detection package</description>
   <maintainer email="sobits@todo.todo">sobits</maintainer>
 
+<<<<<<< HEAD
+=======
+  <maintainer email="sobits@todo.todo">sobits</maintainer>
+
+>>>>>>> feature/oss
   <license>TODO</license>
 
   <buildtool_depend>catkin</buildtool_depend>
@@ -35,4 +40,5 @@
 
   <export>
   </export>
+  
 </package>

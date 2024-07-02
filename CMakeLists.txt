@@ -11,13 +11,11 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_msgs
   message_generation
-  tf
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
+  sobits_msgs
 )
-
-add_service_files(
-   FILES
-   execute_ctrl.srv
- )
 
 generate_messages(
   DEPENDENCIES
