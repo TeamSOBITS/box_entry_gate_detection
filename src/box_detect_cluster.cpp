@@ -59,7 +59,7 @@ class BoxDetection{
     PointCloud::Ptr                           boxDetect_cloud_;
 
     std::string                               base_frame_name_;
-    std::string                               map_frame_name_;
+    // std::string                               map_frame_name_;
     std::string                               sub_point_topic_name;
 
     /*  Eigen::Vector */
@@ -68,11 +68,12 @@ class BoxDetection{
     Eigen::Vector4f                           entry_gate_min_pt_, entry_gate_max_pt_, entry_gate_center_pt_;
 
     double                                    depth_x_max_, depth_x_min_, depth_z_max_, depth_z_min_;
+    double                                    shift_x_, shift_y_, shift_z_;
     double                                    cluster_ss_;
 
 
-    bool                                      input_port_ok = false;//To avoid continuously publishing tf
-    bool                                      execute_flag;
+    // bool                                      input_port_ok = false;
+    bool                                      execute_flag;  //To avoid continuously publishing tf
 
   public:
     BoxDetection()
@@ -84,23 +85,28 @@ class BoxDetection{
       , entry_gate()
       , cloud_transformed_(new PointCloud())
       , boxDetect_cloud_(new PointCloud()){
-    this->execute_flag = false;
-    input_port_ok = false;;
+    execute_flag = false;
+    // input_port_ok = false;;
      // load rosparam
+     ros::param::get("/box_entry_gate_detection/execute_default", execute_flag);
      ros::param::get("/box_entry_gate_detection/depth_range_min_x", depth_x_min_);
      ros::param::get("/box_entry_gate_detection/depth_range_max_x", depth_x_max_);
      ros::param::get("/box_entry_gate_detection/depth_range_min_z", depth_z_min_);
      ros::param::get("/box_entry_gate_detection/depth_range_max_z", depth_z_max_);
      ros::param::get("/box_entry_gate_detection/cluster_ss", cluster_ss_);
      ros::param::get("/box_entry_gate_detection/base_frame_name", base_frame_name_);
-     ros::param::get("/box_entry_gate_detection/map_frame_name", map_frame_name_);
+    //  ros::param::get("/box_entry_gate_detection/map_frame_name", map_frame_name_);
      ros::param::get("/box_entry_gate_detection/sub_point_topic_name", sub_point_topic_name);
+
+     ros::param::get("/box_entry_gate_detection/shift_x", shift_x_);
+     ros::param::get("/box_entry_gate_detection/shift_y", shift_y_);
+     ros::param::get("/box_entry_gate_detection/shift_z", shift_z_);
 
 
     // Create a ROS subscriber and publisher
      ROS_INFO("%s",sub_point_topic_name.c_str());
      cloud_sub_ = nh_.subscribe(sub_point_topic_name, 1, &BoxDetection::DetectPointCb, this);
-     run_ctrl_server_ = nh_.advertiseService("RunCtrl", &BoxDetection::run_ctrl_server, this);
+     run_ctrl_server_ = nh_.advertiseService("run_ctrl", &BoxDetection::run_ctrl_server, this);
     //Publisher
      pcl_rosmsg_          =  nh_.advertise<sensor_msgs::PointCloud2>("/pcl_rosMsg",1);
      transform_           =  nh_.advertise<sensor_msgs::PointCloud2>("/transform",1);
@@ -115,14 +121,14 @@ class BoxDetection{
 
     bool run_ctrl_server( sobits_msgs::RunCtrl::Request&  req,
                           sobits_msgs::RunCtrl::Response& res) {
-      this->execute_flag = req.request;
-      if (this->execute_flag == true) {
+      execute_flag = req.request;
+      if (execute_flag == true) {
         ROS_INFO("Start Box_Detect.");
-        input_port_ok = true;
+        // input_port_ok = true;
         } 
       else{
         ROS_INFO("Stop Box_Detect.");
-        input_port_ok = false;
+        // input_port_ok = false;
         }
       res.response = true;
       return true;
@@ -438,11 +444,11 @@ class BoxDetection{
  	}//box_marker
 
   bool send_tf_frame(){
-    if(input_port_ok){
+    if(execute_flag){
         geometry_msgs::TransformStamped entry_gate_tf;
-        entry_gate_tf.transform.translation.x = box_center_pt_.x();
-        entry_gate_tf.transform.translation.y = box_center_pt_.y();
-        entry_gate_tf.transform.translation.z = box_center_pt_.z() + 0.2;
+        entry_gate_tf.transform.translation.x = box_center_pt_.x() + shift_x_;
+        entry_gate_tf.transform.translation.y = box_center_pt_.y() + shift_y_;
+        entry_gate_tf.transform.translation.z = box_center_pt_.z() + shift_z_;
         entry_gate_tf.transform.rotation.x = 0;
         entry_gate_tf.transform.rotation.y = 0;
         entry_gate_tf.transform.rotation.z = 0;
