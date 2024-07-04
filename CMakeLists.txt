@@ -34,12 +34,16 @@ include_directories(
 
 add_executable(box_detect src/box_detect_cluster.cpp)
 target_link_libraries(box_detect ${PCL_LIBRARIES} ${catkin_LIBRARIES})
+add_dependencies(box_detect ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 add_executable(topic_saver src/topic_saver.cpp)
 target_link_libraries(topic_saver ${PCL_LIBRARIES} ${catkin_LIBRARIES})
+add_dependencies(topic_saver ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 add_executable(pcdfile_saver_binary src/pcdfile_saver_binary.cpp)
 target_link_libraries(pcdfile_saver_binary ${PCL_LIBRARIES} ${catkin_LIBRARIES})
+add_dependencies(pcdfile_saver_binary ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 add_executable(scene_model src/scene_model.cpp)
 target_link_libraries(scene_model ${PCL_LIBRARIES} ${catkin_LIBRARIES})
+add_dependencies(scene_model ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
