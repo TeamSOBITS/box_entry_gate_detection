@@ -1,156 +1,80 @@
-/* Reading point cloud data from a PCD file, converting it into the sensor_msgs::PointCloud2 type, and publishing */
-
-/* ROS Basic Header */
-#include <ros/ros.h>
-/* Input/Output Related Header */
-#include <iostream>
-/* Point Cloud Library */
-#include <pcl_ros/point_cloud.h>
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/point_cloud_conversion.hpp>
+#include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
-#include <pcl_ros/transforms.h>
+#include <pcl_ros/transforms.hpp>
 #include <pcl/io/io.h>
 #include <pcl/io/pcd_io.h>
-/* sensor_msgs */
-#include <sensor_msgs/PointCloud2.h>
-#include "unistd.h"
+#include <Eigen/Dense>
+#include <pcl_conversions/pcl_conversions.h>
 
+typedef pcl::PointXYZ PointT; // PointT for point cloud
+typedef pcl::PointCloud<PointT> PointCloud;
 
-
-typedef pcl::PointXYZ PointT; // Convert pcl::PointXYZ to PointT (point cloud data structure)
-typedef pcl::PointCloud<PointT> PointCloud; // Smart pointer pcl::PointCloud<pcl::PointXYZ> → PointCloud
-
-class PointcloudPublisherNode
+class PointcloudPublisherNode : public rclcpp::Node
 {
-  private:
-    ros::NodeHandle nh_;
-    ros::NodeHandle pnh_;
-    /* Publisher */
-    ros::Publisher pub_cloud_sensor_;       // Point cloud publisher
-    ros::Publisher pub_cloud_;              // Point cloud publisher
-    /* param */
-    std::string data_path_;                 // Path to the PCD file
-
-
-  // Rotation of the PointCloud (if needed)
-  void rotation(){
-    PointCloud::Ptr cloud (new PointCloud());                 // Point Cloud variable (pointer) for storing point cloud data
-    PointCloud::Ptr cloud_transformed (new PointCloud());     // Point Cloud variable (pointer) for storing point cloud data
-
-    /* Rotation about the x-axis by theta */
-    Eigen::Matrix4f rotation_matrix_x;
-    float cos_theta = 0.0;
-    float sin_theta = 1.0;
-    // Create a 4x4 matrix
-    rotation_matrix_x << \
-      1,         0,           0, 0, \
-      0, cos_theta, - sin_theta, 0, \
-      0, sin_theta,   cos_theta, 0, \
-      0,          0,           0, 1;
-    //Rotation
-    pcl::transformPointCloud(*cloud, *cloud_transformed, rotation_matrix_x );
-    cloud = cloud_transformed;
-
-
-    /* Rotation about the y-axis by theta */
-    Eigen::Matrix4f rotation_matrix_y;
-    cos_theta = 0.0;
-    sin_theta = -1.0;
-    // Create a 4x4 matrix
-      rotation_matrix_y << \
-        cos_theta,  0,    sin_theta, 0, \
-                0,  1,            0, 0, \
-      -sin_theta,  0,    cos_theta, 0, \
-                0,  0,            0, 1;
-    //Rotation
-    // pcl::transformPointCloud(*cloud, *cloud_transformed, rotation_matrix_y );
-    // cloud = cloud_transformed;
-
-    /* Rotation about the z-axis by theta */
-    Eigen::Matrix4f rotation_matrix_z;
-    cos_theta = 0.0;
-    sin_theta = -1.0;
-    // Create a 4x4 matrix
-    rotation_matrix_z << \
-      cos_theta,  - sin_theta,   0, 0, \
-      sin_theta,    cos_theta,   0, 0, \
-              0,            0,   1, 0, \
-              0,            0,   0, 1;
-
-    //Rotation
-    // pcl::transformPointCloud(*cloud, *cloud_transformed, rotation_matrix_z );
-    // cloud = cloud_transformed;
-    return;
-  }
-
-
-  /* Main Function */
-  int main(void){
-    PointCloud::Ptr cloud (new PointCloud());                 // Point Cloud variable (pointer) for storing point cloud data
-    PointCloud::Ptr cloud_transformed (new PointCloud());     // Point Cloud variable (pointer) for storing point cloud data
-
-    /* Load the created PointCloud */
-    if (pcl::io::loadPCDFile<pcl::PointXYZ> (this->data_path_, *cloud) == -1){
-      PCL_ERROR ("Couldn't read file test_pcd.pcd \n");
-      return (-1);
-    }
-
-    /* Output the contents of the loaded point cloud data */
-    std::cout << "===========================================================\n" << std::endl;
-    std::cout << "Loaded\n"
-              << cloud->width * cloud->height
-              << "data points from test_pcd.pcd with the following fields:\n"
-              << std::endl;
-    /*
-    std::cout << "\tx : [m]\t\ty : [m]\t\tz : [m]" << std::endl;
-    std::cout << "-----------------------------------------------------------" << std::endl;
-    for (size_t i = 0; i < cloud->points.size (); ++i){
-      std::cout << i+1  << "\tx : "   << cloud->points[i].x
-                        << "\ty : "   << cloud->points[i].y
-                        << "\tz : "   << cloud->points[i].z << std::endl;
-    }
-    */
-    std::cout << "===========================================================\n" << std::endl;
-
-    /* sensor_msgs */
-    sensor_msgs::PointCloud2 sensor_cloud;  // Variable of type sensor_msgs::PointCloud2 for storing point cloud data
-
-    // Convert the PointCloud variable to a sensor_msgs::PointCloud2 variable
-    pcl::toROSMsg(*cloud, sensor_cloud);
-
-    cloud->header.frame_id = "camera_rgb_optical_frame";
-    sensor_cloud.header.frame_id = "camera_rgb_optical_frame";
-
-    /* Publish the sensor_cloud */
-    ros::Rate loop_rate(3);
-    while (ros::ok()){
-      this->pub_cloud_.publish(cloud);
-      this->pub_cloud_sensor_.publish(sensor_cloud);
-      loop_rate.sleep();
-    }
-    return 0;
-  }
-
-
-  public:
+public:
     PointcloudPublisherNode()
-      : nh_()
-      , pnh_("~"){
-      ros::param::get("data_path", this->data_path_);
-      std::cout << "====================\nLoad Data" << std::endl;
-      std::cout << "data_path = "  << this->data_path_ << std::endl;
-      std::cout << "====================\n" << std::endl;
+        : Node("pointcloud_publisher_node"), proc_count(0)
+    {
+        // Parameter for PCD file path
+        this->declare_parameter<std::string>("data_path", "");
+        this->get_parameter("data_path", data_path_);
 
-      // Definition of the Point Cloud Data Publisher
-      this->pub_cloud_sensor_ = nh_.advertise<sensor_msgs::PointCloud2>("/sensor_data", 1);
-      this->pub_cloud_ = nh_.advertise<PointCloud>("/PointCloud", 1);
-      main();
+        RCLCPP_INFO(this->get_logger(), "====================");
+        RCLCPP_INFO(this->get_logger(), "Load Data from: %s", data_path_.c_str());
+        RCLCPP_INFO(this->get_logger(), "====================");
+
+        // Publisher for PointCloud and PointCloud2
+        pub_cloud_sensor_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/sensor_data", 1);
+
+        // Load PointCloud from PCD file
+        loadPointCloud();
+
+        // Spin to keep the node alive and publish data
+        rclcpp::WallRate loop_rate(3); // 3Hz
+        while (rclcpp::ok()) {
+            pub_cloud_sensor_->publish(sensor_cloud_);
+            loop_rate.sleep();
+        }
     }
+
+private:
+    void loadPointCloud()
+    {
+        cloud_ = std::make_shared<PointCloud>();
+        // Load the PCD file
+        if (pcl::io::loadPCDFile<PointT>(data_path_, *cloud_) == -1) {
+            RCLCPP_ERROR(this->get_logger(), "Couldn't read file %s", data_path_.c_str());
+            rclcpp::shutdown();
+            return;
+        }
+
+        RCLCPP_INFO(this->get_logger(), "Loaded %zu data points", cloud_->points.size());
+
+        // Convert to PointCloud2 format
+        pcl::toROSMsg(*cloud_, sensor_cloud_);
+        sensor_cloud_.header.frame_id = "camera_rgb_optical_frame";
+    }
+
+    std::string data_path_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_cloud_sensor_;
+    // rclcpp::Publisher<PointCloud>::SharedPtr pub_cloud_;
+    sensor_msgs::msg::PointCloud2 sensor_cloud_;
+    PointCloud::Ptr cloud_;
+    int proc_count;
 };
 
-int main(int argc, char *argv[]){
-  // Initialization of the node
-  ros::init(argc, argv, "pointcloud_publisher_node");
-  // Creating an instance of PointcloudPublisherNode
-  PointcloudPublisherNode pointcloud_publisher;
-  ros::spin();
+int main(int argc, char *argv[])
+{
+    // Initialize ROS2
+    rclcpp::init(argc, argv);
+
+    // Create and run the PointcloudPublisherNode
+    rclcpp::spin(std::make_shared<PointcloudPublisherNode>());
+
+    // Shutdown ROS2
+    rclcpp::shutdown();
+    return 0;
 }

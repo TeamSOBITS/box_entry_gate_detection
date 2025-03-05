@@ -1,13 +1,9 @@
-#include <time.h>
 #include <math.h>
-#include <ros/ros.h>
-#include <ros/package.h>
-#include <ros/console.h>
-#include <sensor_msgs/LaserScan.h>
-#include <sensor_msgs/PointCloud2.h>
-#include <sensor_msgs/point_cloud_conversion.h>
-#include <tf2_ros/transform_listener.h>
-#include <pcl_ros/transforms.h>
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/point_cloud_conversion.hpp>
+// #include <tf2_ros/transform_listener.hpp>
+#include <pcl_ros/transforms.hpp>
 
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/filters/extract_indices.h>
@@ -21,22 +17,26 @@
 
 #include <string>
 
-class pcl_topic_saver
+class PclTopicSaver : public rclcpp::Node
 {
+private:
+    rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_point_;
+    int proc_count;
+    tf2_ros::Buffer buffer_;
+    tf2_ros::TransformListener listener_;
 public:
-    pcl_topic_saver()
-        : nh()
-        , proc_count(0)
-        , listener(buffer)
-        , sub_point(nh.subscribe("/camera/depth/points", 1, &pcl_topic_saver::point_cb, this))
+    PclTopicSaver()
+        : Node("topic_saver"), proc_count(0), buffer_(this->get_clock()), listener_(buffer_)
     {
+        sub_point_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
+            "/camera/depth/points", 10, std::bind(&PclTopicSaver::point_cb, this, std::placeholders::_1));
     }
 
-    void point_cb(const sensor_msgs::PointCloud2ConstPtr& input)
+    void point_cb(const sensor_msgs::msg::PointCloud2::SharedPtr input)
     {
-        if (input->header.stamp + ros::Duration(1.0) < ros::Time::now())
+        if ((input->header.stamp.sec + std::chrono::seconds(1).count()) < this->now().seconds())
         {
-            ROS_INFO_STREAM("Point cloud skip");
+            RCLCPP_INFO(this->get_logger(), "Point cloud skip");
             return;
         }
 
@@ -44,28 +44,25 @@ public:
         pcl::fromROSMsg(*input, *cloud_input);
 
         pcl::io::savePCDFileASCII("saved_PointCloud_" + std::to_string(proc_count) + ".pcd", *cloud_input);
-        ROS_INFO_STREAM("Saved pcd file: saved_PointCloud_" + std::to_string(proc_count) + ".pcd");
+        // RCLCPP_INFO(this->get_logger(), "Saved pcd file: saved_PointCloud_" + std::to_string(proc_count) + ".pcd");
+        RCLCPP_INFO(this->get_logger(), "Saved pcd file: saved_PointCloud_%d.pcd", proc_count);
         proc_count++;
 
-        ROS_INFO("Press Enter Key!");
+        RCLCPP_INFO(this->get_logger(), "Press Enter Key!");
         std::string temp_str;
         std::getline(std::cin, temp_str);
-        ROS_INFO_STREAM(temp_str);
+        RCLCPP_INFO(this->get_logger(), temp_str.c_str());
     }
 
-private:
-    ros::NodeHandle nh;
-    ros::Subscriber sub_point;
-    int proc_count;
-    tf2_ros::Buffer buffer;
-    tf2_ros::TransformListener listener;
+
 };
 
 int main(int argc, char** argv)
 {
-    ros::init(argc, argv, "topic_saver");
-    ROS_INFO("Start topic_saver.");
-    pcl_topic_saver psc;
-    ros::spin();
+    rclcpp::init(argc, argv);
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Start topic_saver.");
+    auto pcl_topic_saver = std::make_shared<PclTopicSaver>();
+    rclcpp::spin(pcl_topic_saver);
+    rclcpp::shutdown();
     return 0;
 }
