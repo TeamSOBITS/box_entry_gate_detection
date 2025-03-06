@@ -154,7 +154,7 @@ class BoxDetection : public rclcpp:: Node {
        //ros::param::get("/box_entry_gate_detection/shift_x", shift_x_);
        //ros::param::get("/box_entry_gate_detection/shift_y", shift_y_);
        //ros::param::get("/box_entry_gate_detection/shift_z", shift_z_);
-       this->declare_parameter("shift_x", 0.0);
+       this->declare_parameter("shift_x", 0.0);                                                                                        
        this->declare_parameter("shift_y", 0.0);
        this->declare_parameter("shift_z", 0.0);
 
@@ -183,7 +183,7 @@ class BoxDetection : public rclcpp:: Node {
       
         //run_ctrl_server_ = nh_.advertiseService("run_ctrl", &BoxDetection::run_ctrl_server, this);
         run_ctrl_server_ = this->create_service<std_srvs::srv::SetBool>(
-            "run_ctrl", std::bind(&BoxDetection::execute_ctrl_server, this, std::placeholders::_1, std::placeholders::_2));
+            "box_detection_node/run_ctrl", std::bind(&BoxDetection::execute_ctrl_server, this, std::placeholders::_1, std::placeholders::_2));
       //Publisher
        //pcl_rosmsg_          =  nh_.advertise<sensor_msgs::PointCloud2>("/pcl_rosMsg",1);
        //transform_           =  nh_.advertise<sensor_msgs::PointCloud2>("/transform",1);
@@ -665,7 +665,7 @@ class BoxDetection : public rclcpp:: Node {
             //br.sendTransform(entry_gate_tf); // Broadcast the TF for the cluster
             br_.sendTransform(entry_gate_tf); // Broadcast the TF for the cluster
         } else {
-            RCLCPP_INFO(this->get_logger(), "TF stopping");
+            //RCLCPP_INFO(this->get_logger(), "TF stopping");
             //std::cout << "tf stopping" << std::endl;
         }
         return true;
