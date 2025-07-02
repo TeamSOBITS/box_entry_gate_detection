@@ -7,6 +7,7 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
+find_package(tf2_eigen REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
@@ -30,6 +31,7 @@ ament_target_dependencies(box_detect
   visualization_msgs
   PCL
   std_srvs
+  tf2_eigen
 )
 
 add_executable(topic_saver src/topic_saver.cpp)

@@ -6,17 +6,17 @@ from launch_ros.actions import Node
 def generate_launch_description():
     return LaunchDescription([
         # Declare parameters
-        DeclareLaunchArgument('execute_default', default_value='true', description='Execute default'),
-        DeclareLaunchArgument('sub_point_topic_name', default_value='/points2', description='Topic name for point cloud'),
-        DeclareLaunchArgument('base_frame_name', default_value='camera_base', description='Base frame name'),
-        DeclareLaunchArgument('depth_range_min_x', default_value='0.1', description='Minimum depth in X direction'),
-        DeclareLaunchArgument('depth_range_max_x', default_value='0.5', description='Maximum depth in X direction'),
+        DeclareLaunchArgument('execute_default', default_value='false', description='Execute default'),
+        DeclareLaunchArgument('sub_point_topic_name', default_value='/hsrb/head_rgbd_sensor/depth_registered/points', description='Topic name for point cloud'),
+        DeclareLaunchArgument('base_frame_name', default_value='base_footprint', description='Base frame name'),
+        DeclareLaunchArgument('depth_range_min_x', default_value='0.0', description='Minimum depth in X direction'),
+        DeclareLaunchArgument('depth_range_max_x', default_value='1.5', description='Maximum depth in X direction'),
         DeclareLaunchArgument('depth_range_min_z', default_value='-0.5', description='Minimum depth in Z direction'),
-        DeclareLaunchArgument('depth_range_max_z', default_value='0.2', description='Maximum depth in Z direction'),
+        DeclareLaunchArgument('depth_range_max_z', default_value='0.7', description='Maximum depth in Z direction'),
         DeclareLaunchArgument('cluster_ss', default_value='0.05', description='Cluster resolution'),
         DeclareLaunchArgument('shift_x', default_value='0.0', description='Shift in X direction'),
         DeclareLaunchArgument('shift_y', default_value='0.0', description='Shift in Y direction'),
-        DeclareLaunchArgument('shift_z', default_value='0.0', description='Shift in Z direction'),
+        DeclareLaunchArgument('shift_z', default_value='0.35', description='Shift in Z direction'),
 
         # Launch box_detection_node
         Node(
