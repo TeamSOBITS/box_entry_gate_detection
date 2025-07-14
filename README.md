@@ -96,7 +96,7 @@ $ ros2 launch box_entry_gate_detection box_detection.launch.py
 | パラメータ名 | 説明 | デフォルト値 |
 |:---:|:---:|:---:|
 | execute_default | 起動時処理を行うかどうか | false |
-| sub_point_topic_name | subscribeする点群のtopic名 | /points|
+| sub_point_topic_name | subscribeする点群のtopic名 | /head_rgbd_sensor/depth_registered/points|
 | base_frame_name | 基準フレーム名 | base_footprint|
 | depth_range_min_x | 処理を行う範囲，x軸の最小値 | 0.0|
 | depth_range_max_x | 処理を行う範囲，x軸の最大値 | 1.5|

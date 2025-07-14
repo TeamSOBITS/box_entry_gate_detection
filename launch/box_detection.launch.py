@@ -7,7 +7,7 @@ def generate_launch_description():
     return LaunchDescription([
         # Declare parameters
         DeclareLaunchArgument('execute_default', default_value='false', description='Execute default'),
-        DeclareLaunchArgument('sub_point_topic_name', default_value='/hsrb/head_rgbd_sensor/depth_registered/points', description='Topic name for point cloud'),
+        DeclareLaunchArgument('sub_point_topic_name', default_value='/head_rgbd_sensor/depth_registered/points', description='Topic name for point cloud'),
         DeclareLaunchArgument('base_frame_name', default_value='base_footprint', description='Base frame name'),
         DeclareLaunchArgument('depth_range_min_x', default_value='0.0', description='Minimum depth in X direction'),
         DeclareLaunchArgument('depth_range_max_x', default_value='1.5', description='Maximum depth in X direction'),
