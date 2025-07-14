@@ -1,12 +1,12 @@
 <a name="readme-top"></a>
 
-[JP](README.md) | [EN](README_en.md)
+[JA](README.md) | [EN](README_en.md)
 
 [![Contributors][contributors-shield]][contributors-url]
 [![Forks][forks-shield]][forks-url]
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
-<!-- [![MIT License][license-shield]][license-url] -->
+[![License][license-shield]][license-url]
 
 # box_entry_gate_detection
 
@@ -18,13 +18,14 @@
       <a href="#概要">概要</a>
     </li>
     <li>
-      <a href="#環境構築">環境構築</a>
+      <a href="#セットアップ">セットアップ</a>
       <ul>
         <li><a href="#環境条件">環境条件</a></li>
         <li><a href="#インストール方法">インストール方法</a></li>
       </ul>
     </li>
     <li><a href="#実行操作方法">実行・操作方法</a></li>
+    <li><a href="#パラメータ">パラメータ</a></li>
     <!-- <li><a href="#contributing">Contributing</a></li> -->
     <!-- <li><a href="#license">License</a></li> -->
   </ol>
@@ -36,7 +37,7 @@
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
 <!-- セットアップ -->
-## 環境構築
+## セットアップ
 
 ここで，本リポジトリのセットアップ方法について説明します．
 
@@ -48,9 +49,8 @@
 
 | System  | Version |
 | ------------- | ------------- |
-| Ubuntu | 20.04 (Focal Fossa) |
-| ROS | Noetic Ninjemys |
-| Python | 3.8 |
+| Ubuntu | 22.04 (Jammy Jellyfish) |
+| ROS | Humble Hawksbill |
 
 > [!NOTE]
 > `Ubuntu`や`ROS`のインストール方法に関しては，[SOBITS Manual](https://github.com/TeamSOBITS/sobits_manual#%E9%96%8B%E7%99%BA%E7%92%B0%E5%A2%83%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6)を参照してください．
@@ -60,13 +60,11 @@
 ### インストール方法
 1. ROSの`src`フォルダに移動します．
    ```sh
-   $ roscd
-   # もしくは，"cd ~/catkin_ws/"へ移動．
-   $ cd src/
+   $ cd ~/colcon_ws/src/
    ```
 2. 本リポジトリをcloneします．
    ```sh
-   $ git clone https://github.com/TeamSOBITS/box_entry_gate_detection
+   $ git clone -b humble https://github.com/TeamSOBITS/box_entry_gate_detection
    ```
 3. リポジトリの中へ移動します．
    ```sh
@@ -78,41 +76,50 @@
    ```
 5. パッケージをコンパイルします．
    ```sh
-   $ roscd
-   # もしくは，"cd ~/catkin_ws/"へ移動．
-   $ catkin_make
+   $ cd ~/colcon_ws/
+   $ colcon build --symlink-install
+   $ source ~/colcon_ws/install/setup.sh
    ```
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
 
 ## 実行・操作方法
 ```
-$ roslaunch box_entry_gate_detection box_detection.launch
+$ ros2 launch box_entry_gate_detection box_detection.launch.py
 ```
+
+<p align="right">(<a href="#readme-top">上に戻る</a>)</p>
+
+## パラメータ
+以下が[box_detection.launch.py](launch/box_detection.launch.py)で設定できるパラメータです.
+
+| パラメータ名 | 説明 | デフォルト値 |
+|:---:|:---:|:---:|
+| execute_default | 起動時処理を行うかどうか | false |
+| sub_point_topic_name | subscribeする点群のtopic名 | /points|
+| base_frame_name | 基準フレーム名 | base_footprint|
+| depth_range_min_x | 処理を行う範囲，x軸の最小値 | 0.0|
+| depth_range_max_x | 処理を行う範囲，x軸の最大値 | 1.5|
+| depth_range_min_z | 処理を行う範囲，z軸の最小値 | 0.1|
+| depth_range_max_z | 処理を行う範囲，z軸の最大値 | 0.7|
+| cluster_ss | クラスタリング時，距離の閾値 | 0.05|
+| shift_x | tfの位置を調整する値（x軸） | 0.0|
+| shift_y | tfの位置を調整する値（y軸） | 0.0|
+| shift_z | tfの位置を調整する値（z軸） | 0.0|
+
+> [!WARNING]
+> 使用するRGB-Dカメラに合わせてtopic_nameのvalueの値を変更してください
+
+<p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
 ## パッケージに関する情報
 ### Publications:
-* /pcl_rosMsg [sensor_msgs/PointCloud2]
-* /transform [sensor_msgs/PointCloud2]
-* /cut_x_cloud [sensor_msgs/PointCloud2]
-* /filter_cloud [sensor_msgs/PointCloud2]
-* /voxel_grid [sensor_msgs/PointCloud2]
 * /entry_gate_edge [sensor_msgs/PointCloud2]
 * /box_entry_gate_detection/box_cluster [visualization_msgs/MarkerArray]
 * /box_entry_gate_detection/box_placeable_point [visualization_msgs/MarkerArray]
 * /box_entry_gate_detection/box_point [visualization_msgs/MarkerArray]
 * /tf [tf2_msgs/TFMessage]
 
-### Subscriptions:
- * /hsrb/head_rgbd_sensor/depth_registered/points [sensor_msgs/PointCloud2]
- * /tf [tf2_msgs/TFMessage]
- * /tf_static [tf2_msgs/TFMessage]
-
-> [!WARNING]
-> 使用するRGB-Dカメラに合わせてlaunchファイルの以下のtopicのvalueの値を変更してください
-```bash
-<param name="sub_point_topic_name" type="str" value="/hsrb/head_rgbd_sensor/depth/points"/>
-```
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
