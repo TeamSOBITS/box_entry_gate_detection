@@ -19,7 +19,7 @@ sudo apt-get install -y \
     ros-$ROS_DISTRO-tf2-ros \
     ros-$ROS_DISTRO-tf2-geometry-msgs
     
-Source the ROS2 setup file
+#Source the ROS2 setup file
 source /opt/ros/$ROS_DISTRO/setup.bash
 
 
