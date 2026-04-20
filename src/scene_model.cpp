@@ -4,6 +4,7 @@
 #include <pcl/io/io.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl_ros/transforms.hpp>
+#include <pcl/common/transforms.h>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <pcl_conversions/pcl_conversions.h>
 #include <Eigen/Dense>

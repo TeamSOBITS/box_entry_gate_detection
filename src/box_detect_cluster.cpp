@@ -11,6 +11,7 @@
 /* Point Cloud Library */
 /// Include PCL ROS point cloud support
 #include <pcl_ros/transforms.hpp>// Include PCL transforms for point clouds
+#include <pcl/common/transforms.h>
 #include <pcl/point_types.h>// Include PCL point types
 #include <pcl/filters/passthrough.h>// Include passthrough filter for point clouds
 #include <pcl/filters/voxel_grid.h> // Include voxel grid filter for downsampling point clouds
