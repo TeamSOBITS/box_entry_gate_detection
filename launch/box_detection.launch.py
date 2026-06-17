@@ -21,7 +21,6 @@ def generate_launch_description():
         namespace='',
         output='screen',
         parameters=[{
-            'execute_default': launch.substitutions.LaunchConfiguration('execute_default'),
             'sub_point_topic_name': launch.substitutions.LaunchConfiguration('sub_point_topic_name'),
             'base_frame_name': launch.substitutions.LaunchConfiguration('base_frame_name'),
             'depth_range_min_x': launch.substitutions.LaunchConfiguration('depth_range_min_x'),
@@ -62,7 +61,6 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('auto_configure', default_value='true', description='Configure lifecycle node on launch'),
         DeclareLaunchArgument('auto_activate', default_value='true', description='Activate lifecycle node after configure'),
-        DeclareLaunchArgument('execute_default', default_value='false', description='Execute default'),
         DeclareLaunchArgument('sub_point_topic_name', default_value='/sobit_home/head_camera/depth/points', description='Topic name for point cloud'),
         DeclareLaunchArgument('base_frame_name', default_value='base_footprint', description='Base frame name'),
         DeclareLaunchArgument('depth_range_min_x', default_value='0.0', description='Minimum depth in X direction'),

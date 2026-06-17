@@ -17,7 +17,6 @@ sudo apt-get install -y \
     ros-$ROS_DISTRO-lifecycle-msgs \
     ros-$ROS_DISTRO-sensor-msgs \
     ros-$ROS_DISTRO-std-msgs \
-    ros-$ROS_DISTRO-std-srvs \
     ros-$ROS_DISTRO-tf2-ros \
     ros-$ROS_DISTRO-tf2-geometry-msgs
     

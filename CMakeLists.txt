@@ -7,7 +7,6 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(std_srvs REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
@@ -32,7 +31,6 @@ ament_target_dependencies(box_detect
   sobits_interfaces
   visualization_msgs
   PCL
-  std_srvs
   tf2_eigen
 )
 
@@ -47,7 +45,6 @@ ament_target_dependencies(topic_saver
   tf2_geometry_msgs
   sobits_interfaces
   std_msgs
-  std_srvs
 )
 
 add_executable(pcdfile_viewer src/pcdfile_viewer.cpp)
@@ -61,7 +58,6 @@ ament_target_dependencies(pcdfile_viewer
   tf2_geometry_msgs
   sobits_interfaces
   std_msgs
-  std_srvs
 )
 
 add_executable(scene_model src/scene_model.cpp)
@@ -75,7 +71,6 @@ ament_target_dependencies(scene_model
   tf2_geometry_msgs
   sobits_interfaces
   std_msgs
-  std_srvs
 )
 
 # Link PCL libraries

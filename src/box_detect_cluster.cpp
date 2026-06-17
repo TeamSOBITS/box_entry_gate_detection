@@ -29,7 +29,6 @@
 
 #include <cmath>// Include math functions
 #include <chrono>// Include time measurement utilities
-#include <std_srvs/srv/set_bool.hpp>// #include "sobits_msgs/RunCtrl.h"
 
 typedef pcl::PointXYZ PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
@@ -46,7 +45,6 @@ class BoxDetection : public rclcpp_lifecycle::LifecycleNode {
     rclcpp_lifecycle::LifecyclePublisher<visualization_msgs::msg::MarkerArray>::SharedPtr box_clusters_;
     rclcpp_lifecycle::LifecyclePublisher<visualization_msgs::msg::MarkerArray>::SharedPtr target_marker_;
     rclcpp_lifecycle::LifecyclePublisher<visualization_msgs::msg::MarkerArray>::SharedPtr box_marker_;
-    rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr run_ctrl_server_;
     std::shared_ptr<tf2_ros::Buffer>               tfBuffer_;
     std::shared_ptr<tf2_ros::TransformListener>    tfListener_;
     std::shared_ptr<tf2_ros::TransformBroadcaster> tfBroadcaster_;
@@ -66,7 +64,6 @@ class BoxDetection : public rclcpp_lifecycle::LifecycleNode {
     double                                    depth_x_max_, depth_x_min_, depth_z_max_, depth_z_min_;
     double                                    shift_x_, shift_y_, shift_z_;
     double                                    cluster_ss_;
-    bool                                      execute_flag;  //To avoid continuously publishing tf
     bool                                      active_;
 
   public:
@@ -76,9 +73,7 @@ class BoxDetection : public rclcpp_lifecycle::LifecycleNode {
       cloud_transformed_(std::make_shared<PointCloud>()), 
       boxDetect_cloud_(std::make_shared<PointCloud>()),
       qos_profile_(rclcpp::QoS(1)) {
-        execute_flag = false;
         active_ = false;
-        this->declare_parameter("execute_default", false);
         this->declare_parameter("depth_range_min_x", 0.0);
         this->declare_parameter("depth_range_max_x", 0.0);
         this->declare_parameter("depth_range_min_z", 0.0);
@@ -93,7 +88,6 @@ class BoxDetection : public rclcpp_lifecycle::LifecycleNode {
 
     CallbackReturn on_configure(const rclcpp_lifecycle::State &) override {
         // Get parameters
-        execute_flag = this->get_parameter("execute_default").as_bool();
         depth_x_min_ = this->get_parameter("depth_range_min_x").as_double();
         depth_x_max_ = this->get_parameter("depth_range_max_x").as_double();
         depth_z_min_ = this->get_parameter("depth_range_min_z").as_double();
@@ -110,10 +104,6 @@ class BoxDetection : public rclcpp_lifecycle::LifecycleNode {
       qos_profile_.reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT);
       qos_profile_.history(RMW_QOS_POLICY_HISTORY_KEEP_LAST);
       qos_profile_.durability(RMW_QOS_POLICY_DURABILITY_VOLATILE);
-
-      //run_ctrl_server_ = nh_.advertiseService("run_ctrl", &BoxDetection::run_ctrl_server, this);
-      run_ctrl_server_ = this->create_service<std_srvs::srv::SetBool>(
-          "box_detection_node/run_ctrl", std::bind(&BoxDetection::execute_ctrl_server, this, std::placeholders::_1, std::placeholders::_2));
 
       tfBuffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
       tfListener_ = std::make_shared<tf2_ros::TransformListener>(*tfBuffer_);
@@ -160,7 +150,6 @@ class BoxDetection : public rclcpp_lifecycle::LifecycleNode {
       RCLCPP_INFO(this->get_logger(), "Cleaning up box_detection lifecycle node.");
       active_ = false;
       cloud_sub_.reset();
-      run_ctrl_server_.reset();
       entry_gate_pub_.reset();
       box_clusters_.reset();
       target_marker_.reset();
@@ -176,7 +165,6 @@ class BoxDetection : public rclcpp_lifecycle::LifecycleNode {
       RCLCPP_INFO(this->get_logger(), "Shutting down box_detection lifecycle node.");
       active_ = false;
       cloud_sub_.reset();
-      run_ctrl_server_.reset();
       entry_gate_pub_.reset();
       box_clusters_.reset();
       target_marker_.reset();
@@ -187,20 +175,6 @@ class BoxDetection : public rclcpp_lifecycle::LifecycleNode {
 
       return CallbackReturn::SUCCESS;
     }
-
-    bool execute_ctrl_server(const std::shared_ptr<std_srvs::srv::SetBool::Request> req, 
-                                    std::shared_ptr<std_srvs::srv::SetBool::Response> res) {
-      execute_flag = req->data;  // Access the boolean request data
-      if (execute_flag) {
-          RCLCPP_INFO(this->get_logger(), "Start Box_Detect.");
-          res->message = "Start Box_Detect.";  // Set a message in the response
-      } else {
-          RCLCPP_INFO(this->get_logger(), "Stop Box_Detect.");
-          res->message = "Stop Box_Detect.";  // Set a message in the response
-      }
-      res->success = true;  // Indicate the service call was successful
-      return true;
-}
 
   void DetectPointCb(const sensor_msgs::msg::PointCloud2::SharedPtr pcl_msg) {
     if (!active_) {
@@ -499,28 +473,20 @@ class BoxDetection : public rclcpp_lifecycle::LifecycleNode {
     box_marker_->publish(marker);
   }
   bool send_tf_frame(){ //CORRECT THIS 
-    if(execute_flag){
-        //geometry_msgs::TransformStamped entry_gate_tf;
-        geometry_msgs::msg::TransformStamped entry_gate_tf;
-        entry_gate_tf.transform.translation.x = box_center_pt_.x() + shift_x_;
-        entry_gate_tf.transform.translation.y = box_center_pt_.y() + shift_y_;
-        entry_gate_tf.transform.translation.z = box_center_pt_.z() + shift_z_;
-        entry_gate_tf.transform.rotation.x = 0;
-        entry_gate_tf.transform.rotation.y = 0;
-        entry_gate_tf.transform.rotation.z = 0;
-        entry_gate_tf.transform.rotation.w = 1;
-        //entry_gate_tf.header.stamp = ros::Time::now();
-        entry_gate_tf.header.stamp = rclcpp::Clock().now(); 
-        entry_gate_tf.header.frame_id = base_frame_name_;
-        entry_gate_tf.child_frame_id = "placeable_point";
-        //br.sendTransform(entry_gate_tf); // Broadcast the TF for the cluster
-        tfBroadcaster_->sendTransform(entry_gate_tf); // Broadcast the TF for the cluster
-      } else {
-          //RCLCPP_INFO(this->get_logger(), "TF stopping");
-          //std::cout << "tf stopping" << std::endl;
-      }
-      return true;
-    }
+    geometry_msgs::msg::TransformStamped entry_gate_tf;
+    entry_gate_tf.transform.translation.x = box_center_pt_.x() + shift_x_;
+    entry_gate_tf.transform.translation.y = box_center_pt_.y() + shift_y_;
+    entry_gate_tf.transform.translation.z = box_center_pt_.z() + shift_z_;
+    entry_gate_tf.transform.rotation.x = 0;
+    entry_gate_tf.transform.rotation.y = 0;
+    entry_gate_tf.transform.rotation.z = 0;
+    entry_gate_tf.transform.rotation.w = 1;
+    entry_gate_tf.header.stamp = rclcpp::Clock().now(); 
+    entry_gate_tf.header.frame_id = base_frame_name_;
+    entry_gate_tf.child_frame_id = "placeable_point";
+    tfBroadcaster_->sendTransform(entry_gate_tf);
+    return true;
+  }
   
   //When no detection occurs
   void no_detect(const std::string &msg){
