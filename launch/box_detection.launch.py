@@ -21,6 +21,7 @@ def generate_launch_description():
         namespace='',
         output='screen',
         parameters=[{
+            'use_sim_time': launch.substitutions.LaunchConfiguration('use_sim_time'),
             'sub_point_topic_name': launch.substitutions.LaunchConfiguration('sub_point_topic_name'),
             'base_frame_name': launch.substitutions.LaunchConfiguration('base_frame_name'),
             'depth_range_min_x': launch.substitutions.LaunchConfiguration('depth_range_min_x'),
@@ -59,6 +60,7 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        DeclareLaunchArgument('use_sim_time', default_value='false', description='Use simulation clock'),
         DeclareLaunchArgument('auto_configure', default_value='true', description='Configure lifecycle node on launch'),
         DeclareLaunchArgument('auto_activate', default_value='true', description='Activate lifecycle node after configure'),
         DeclareLaunchArgument('sub_point_topic_name', default_value='/sobit_home/head_camera/depth/points', description='Topic name for point cloud'),

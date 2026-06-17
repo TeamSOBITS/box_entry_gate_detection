@@ -370,7 +370,7 @@ class BoxDetection : public rclcpp_lifecycle::LifecycleNode {
 
     marker.header.frame_id = frame_id;
     //marker.header.stamp = ros::Time::now();
-    marker.header.stamp = rclcpp::Clock().now(); 
+    marker.header.stamp = this->now(); 
     marker.ns = marker_ns;
     marker.id = 0;
     marker.type = visualization_msgs::msg::Marker::CUBE;
@@ -407,7 +407,7 @@ class BoxDetection : public rclcpp_lifecycle::LifecycleNode {
     marker.markers.resize(3);
     marker.markers[0].header.frame_id = base_frame_name_;
     //marker.markers[0].header.stamp = ros::Time::now();
-    marker.markers[0].header.stamp = rclcpp::Clock().now();
+    marker.markers[0].header.stamp = this->now();
     marker.markers[0].action = visualization_msgs::msg::Marker::ADD;
     marker.markers[0].type = visualization_msgs::msg::Marker::SPHERE;
     marker.markers[0].ns = points_ns[0];
@@ -429,7 +429,7 @@ class BoxDetection : public rclcpp_lifecycle::LifecycleNode {
 
     marker.markers[1].header.frame_id = base_frame_name_;
     //marker.markers[1].header.stamp = ros::Time::now();
-    marker.markers[1].header.stamp = rclcpp::Clock().now();
+    marker.markers[1].header.stamp = this->now();
     marker.markers[1].action = visualization_msgs::msg::Marker::ADD;
     marker.markers[1].type = visualization_msgs::msg::Marker::SPHERE;
     marker.markers[1].ns = points_ns[1];
@@ -450,8 +450,7 @@ class BoxDetection : public rclcpp_lifecycle::LifecycleNode {
     marker.markers[1].pose.orientation.w = 1;
 
     marker.markers[2].header.frame_id = base_frame_name_;
-    //marker.markers[2].header.stamp = ros::Time::now();
-    marker.markers[2].header.stamp = rclcpp::Clock().now();
+    marker.markers[2].header.stamp = this->now();
     marker.markers[2].action = visualization_msgs::msg::Marker::ADD;
     marker.markers[2].type = visualization_msgs::msg::Marker::SPHERE;
     marker.markers[2].ns = points_ns[2];
@@ -481,7 +480,7 @@ class BoxDetection : public rclcpp_lifecycle::LifecycleNode {
     entry_gate_tf.transform.rotation.y = 0;
     entry_gate_tf.transform.rotation.z = 0;
     entry_gate_tf.transform.rotation.w = 1;
-    entry_gate_tf.header.stamp = rclcpp::Clock().now(); 
+    entry_gate_tf.header.stamp = this->now(); 
     entry_gate_tf.header.frame_id = base_frame_name_;
     entry_gate_tf.child_frame_id = "placeable_point";
     tfBroadcaster_->sendTransform(entry_gate_tf);

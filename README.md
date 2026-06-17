@@ -95,6 +95,7 @@ $ ros2 launch box_entry_gate_detection box_detection.launch.py
 
 | パラメータ名 | 説明 | デフォルト値 |
 |:---:|:---:|:---:|
+| use_sim_time | simulation clockを使用するかどうか | false |
 | auto_configure | 起動時にLifecycle Nodeをconfigureするかどうか | true |
 | auto_activate | configure後にLifecycle Nodeをactivateするかどうか | true |
 | sub_point_topic_name | subscribeする点群のtopic名 | /head_rgbd_sensor/depth_registered/points|
