@@ -4,6 +4,7 @@ project(box_entry_gate_detection)
 # Use ament_cmake for building
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_lifecycle REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
@@ -21,6 +22,7 @@ find_package(PCL REQUIRED COMPONENTS visualization)
 add_executable(box_detect src/box_detect_cluster.cpp)
 ament_target_dependencies(box_detect
   rclcpp
+  rclcpp_lifecycle
   sensor_msgs
   pcl_ros
   pcl_conversions
