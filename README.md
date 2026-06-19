@@ -98,12 +98,12 @@ $ ros2 launch box_entry_gate_detection box_detection.launch.py
 | use_sim_time | simulation clockを使用するかどうか | false |
 | auto_configure | 起動時にLifecycle Nodeをconfigureするかどうか | true |
 | auto_activate | configure後にLifecycle Nodeをactivateするかどうか | true |
-| sub_point_topic_name | subscribeする点群のtopic名 | /head_rgbd_sensor/depth_registered/points|
+| sub_point_topic_name | subscribeする点群のtopic名 | head_camera/depth/color/points |
 | base_frame_name | 基準フレーム名 | base_footprint|
 | depth_range_min_x | 処理を行う範囲，x軸の最小値 | 0.0|
 | depth_range_max_x | 処理を行う範囲，x軸の最大値 | 1.5|
 | depth_range_min_z | 処理を行う範囲，z軸の最小値 | 0.1|
-| depth_range_max_z | 処理を行う範囲，z軸の最大値 | 0.7|
+| depth_range_max_z | 処理を行う範囲，z軸の最大値 | 1.5|
 | cluster_ss | クラスタリング時に用いる距離の閾値 | 0.05|
 | shift_x | tfの位置を調整する値（x軸） | 0.0|
 | shift_y | tfの位置を調整する値（y軸） | 0.0|
