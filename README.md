@@ -49,8 +49,8 @@
 
 | System  | Version |
 | ------------- | ------------- |
-| Ubuntu | 22.04 (Jammy Jellyfish) |
-| ROS | Humble Hawksbill |
+| Ubuntu | 24.04 (Noble Numbat) |
+| ROS 2 | Jazzy Jalisco |
 
 > [!NOTE]
 > `Ubuntu`や`ROS`のインストール方法に関しては，[SOBITS Manual](https://github.com/TeamSOBITS/sobits_manual#%E9%96%8B%E7%99%BA%E7%92%B0%E5%A2%83%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6)を参照してください．
@@ -64,7 +64,7 @@
    ```
 2. 本リポジトリをcloneします．
    ```sh
-   $ git clone -b humble https://github.com/TeamSOBITS/box_entry_gate_detection
+   $ git clone -b jazzy-devel https://github.com/TeamSOBITS/box_entry_gate_detection
    ```
 3. リポジトリの中へ移動します．
    ```sh
