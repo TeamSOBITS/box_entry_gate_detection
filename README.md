@@ -49,8 +49,8 @@
 
 | System  | Version |
 | ------------- | ------------- |
-| Ubuntu | 22.04 (Jammy Jellyfish) |
-| ROS | Humble Hawksbill |
+| Ubuntu | 24.04 (Noble Numbat) |
+| ROS 2 | Jazzy Jalisco |
 
 > [!NOTE]
 > `Ubuntu`や`ROS`のインストール方法に関しては，[SOBITS Manual](https://github.com/TeamSOBITS/sobits_manual#%E9%96%8B%E7%99%BA%E7%92%B0%E5%A2%83%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6)を参照してください．
@@ -64,7 +64,7 @@
    ```
 2. 本リポジトリをcloneします．
    ```sh
-   $ git clone -b humble https://github.com/TeamSOBITS/box_entry_gate_detection
+   $ git clone -b jazzy-devel https://github.com/TeamSOBITS/box_entry_gate_detection
    ```
 3. リポジトリの中へ移動します．
    ```sh
@@ -95,13 +95,15 @@ $ ros2 launch box_entry_gate_detection box_detection.launch.py
 
 | パラメータ名 | 説明 | デフォルト値 |
 |:---:|:---:|:---:|
-| execute_default | 起動時処理を行うかどうか | false |
-| sub_point_topic_name | subscribeする点群のtopic名 | /head_rgbd_sensor/depth_registered/points|
+| use_sim_time | simulation clockを使用するかどうか | false |
+| auto_configure | 起動時にLifecycle Nodeをconfigureするかどうか | true |
+| auto_activate | configure後にLifecycle Nodeをactivateするかどうか | true |
+| sub_point_topic_name | subscribeする点群のtopic名 | head_camera/depth/color/points |
 | base_frame_name | 基準フレーム名 | base_footprint|
 | depth_range_min_x | 処理を行う範囲，x軸の最小値 | 0.0|
 | depth_range_max_x | 処理を行う範囲，x軸の最大値 | 1.5|
 | depth_range_min_z | 処理を行う範囲，z軸の最小値 | 0.1|
-| depth_range_max_z | 処理を行う範囲，z軸の最大値 | 0.7|
+| depth_range_max_z | 処理を行う範囲，z軸の最大値 | 1.5|
 | cluster_ss | クラスタリング時に用いる距離の閾値 | 0.05|
 | shift_x | tfの位置を調整する値（x軸） | 0.0|
 | shift_y | tfの位置を調整する値（y軸） | 0.0|
