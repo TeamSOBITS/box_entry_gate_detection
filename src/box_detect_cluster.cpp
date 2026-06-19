@@ -471,7 +471,7 @@ class BoxDetection : public rclcpp_lifecycle::LifecycleNode {
     marker.markers[2].pose.orientation.w = 1;
     box_marker_->publish(marker);
   }
-  bool send_tf_frame(){ //CORRECT THIS 
+  bool send_tf_frame(){ 
     geometry_msgs::msg::TransformStamped entry_gate_tf;
     entry_gate_tf.transform.translation.x = box_center_pt_.x() + shift_x_;
     entry_gate_tf.transform.translation.y = box_center_pt_.y() + shift_y_;
